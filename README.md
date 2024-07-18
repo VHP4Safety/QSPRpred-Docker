@@ -17,7 +17,7 @@ Following the steps above should give a result like `[[6.14965] [9.2567]]`.
 
 ## Work for Creating the Docker Container
 
-Find the `Dockerfile` in this directory. Using this file, one can create a Docker image with the required files and modules using the command: 
+Find the `Dockerfile` in the main directory. Using this file, one can create a Docker image with the required files and modules using the command: 
 
 `docker build --tag qspr_test_image .`
 
@@ -28,3 +28,9 @@ This will run the container on the system. One can reach inside the container wi
 `docker exec -it qspr_test_container /bin/bash`
 
 Finally, running `python predict.py` should give the expected result. 
+
+
+## Things to Do
+
+- Adjust the container in a way that it will take input from the user. 
+- Create an UI for the "service". 
