@@ -15,5 +15,8 @@ if not smiles:
 
 model = SklearnModel.fromFile(model_name)
 predictions = model.predictMols(smiles)
-print(predictions)
+
+# Print each SMILES string with its corresponding prediction
+for sm, pred in zip(smiles, predictions):
+    print(f"SMILES: {sm} -> Prediction: {pred[0]:.4f}")
 
