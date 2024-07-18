@@ -13,14 +13,22 @@ RUN apt-get update && apt-get install -y \
 # Set the working directory in the container
 WORKDIR /usr/src/app
 
-# Copy contents into the container at /usr/src/app
-COPY /docker_test .
+# Copy only requirements.txt to leverage Docker cache
+COPY requirements.txt ./
 
 # Install any needed packages specified in requirements.txt
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
+
+# Copy the rest of the application code
+COPY . .
 
 # Make the Python script executable
-RUN chmod +x ./predict.py
+RUN chmod +x /usr/src/app/docker_test/predict_interactive.py
 
-CMD ["python", "./predict.py"]
+# Copy entrypoint script
+COPY entrypoint.sh /usr/src/app/entrypoint.sh
+RUN chmod +x /usr/src/app/entrypoint.sh
+
+# Define the entrypoint script
+ENTRYPOINT ["/usr/src/app/entrypoint.sh"]
+
