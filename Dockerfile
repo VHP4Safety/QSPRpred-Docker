@@ -1,15 +1,26 @@
+FROM python:3.10-slim
 
-# Pulling the Python image
-FROM	python:3.12.4
+# Set environment variables to prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Installing the qsprpred module
-RUN 	pip install qsprpred
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libxrender1 \
+    libxext6 \
+    libx11-6 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copying the source files with the trained model
-COPY 	/docker_test/ /home/
+# Set the working directory in the container
+WORKDIR /usr/src/app
 
-# Changing the working directory
-WORKDIR /home
+# Copy contents into the container at /usr/src/app
+COPY /docker_test .
 
-# Defining the entrypoint
-CMD ["python3"]
+# Install any needed packages specified in requirements.txt
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Make the Python script executable
+RUN chmod +x ./predict.py
+
+CMD ["python", "./predict.py"]
