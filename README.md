@@ -12,4 +12,4 @@ One of the authors have provided us an example for agonists on the thyroid hormo
 3. Navigate into the `docker_test` directory that has the material to conduct the example
 4. Run `python predict.py`
 
-Following the steps above should give a result like ` [[6.14965] [9.2567]]`. 
+Following the steps above should give a result like `[[6.14965] [9.2567]]`. 
