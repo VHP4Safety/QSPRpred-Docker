@@ -13,3 +13,18 @@ One of the authors has provided us an example 'for agonists on the thyroid hormo
 4. Run `python predict.py`
 
 Following the steps above should give a result like `[[6.14965] [9.2567]]`. 
+
+
+## Work for Creating the Docker Container
+
+Find the `Dockerfile` in this directory. Using this file, one can create a Docker image with the required files and modules using the command: 
+
+`docker build --tag qspr_test_image .`
+
+Then, the container can be run with the following command: 
+`docker run -dit --name qspr_test_container qspr_test_image`
+
+This will run the container on the system. One can reach inside the container with: 
+`docker exec -it qspr_test_container /bin/bash`
+
+Finally, running `python predict.py` should give the expected result. 
