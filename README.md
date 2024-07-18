@@ -29,7 +29,7 @@ docker run -d --name qspr_test_container qspr_test_image
 
 This will run the container on the system. One can reach inside the container with: 
 ```
-docker exec qsprpred python /usr/src/app/docker_test/predict_interactive.py "Cc1c(Cc2cc(I)c(OCC(=O)O)c(I)c2)c2c(cccc2)o1" "O=c1cnn(-c2cc(Cl)c(Oc3ccc(O)c(S(=O)(=O)N4CCc5ccccc54)c3)c(Cl)c2)c(=O)[nH]1"
+docker exec qspr_test_container python /usr/src/app/docker_test/predict_interactive.py "Cc1c(Cc2cc(I)c(OCC(=O)O)c(I)c2)c2c(cccc2)o1" "O=c1cnn(-c2cc(Cl)c(Oc3ccc(O)c(S(=O)(=O)N4CCc5ccccc54)c3)c(Cl)c2)c(=O)[nH]1"
 ```
 
 This should give the following results:
