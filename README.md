@@ -32,5 +32,6 @@ Finally, running `python predict.py` should give the expected result.
 
 ## Things to Do
 
-- Adjust the container in a way that it will take input from the user. 
+- Adjust the script/container in a way that it will take input from the user. 
+	- Please see `/docker_test/predict_interactive.py` for this. If it is correct, it should be taking (only one) input of SMILES from the terminal. So, if one runs `python predict_interactive.py "Cc1c(Cc2cc(I)c(OCC(=O)O)c(I)c2)c2c(cccc2)o1"`, the terminal should prompt `[[6.14965]]` which is the first output in the expected outcome. Note that there are two SMILES in the original example, `predict.py` which is why, I think, it prompts two values in the output. 
 - Create an UI for the "service". 
