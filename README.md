@@ -5,7 +5,7 @@ This GitHub repo is set up for the development of a Docker-based service on the 
 
 ## Example Use 
 
-One of the authors have provided us an example for agonists on the thyroid hormone receptor. Following are the steps to conduct the example. 
+One of the authors has provided us an example 'for agonists on the thyroid hormone receptor'. Following are the steps to conduct the example. 
 
 1. Create a Conda environment with Python >= 3.10
 2. Install the qsprpred module with `pip install qsprpred`
