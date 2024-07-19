@@ -43,7 +43,10 @@ This should give the following results:
 There is also a Dockerfile and required files for a Flask app that runs the predictions. To build and run this, use the following commands:
 ```
 docker build -t qspr_flask_image -f Dockerfile-flask .
-docker run -d -p 5000:5000 --name qspr_flask_container qspr_flask_image
+```
+The run command includes a volume so that new models can be added, and made accessible via the service. 
+```
+docker run -d -p 5000:5000 --name qspr_flask_container -v $(pwd)/models:/usr/src/app/models  qspr_flask_image
 ```
 
 
