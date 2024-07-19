@@ -38,6 +38,14 @@ This should give the following results:
  [9.2567 ]]
 ```
 
+## Creating the Flask Docker Container
+
+There is also a Dockerfile and required files for a Flask app that runs the predictions. To build and run this, use the following commands:
+```
+docker build -t qspr_flask_image -f Dockerfile-flask .
+docker run -d -p 5000:5000 --name qspr_flask_container qspr_flask_image
+```
+
 
 ## Things to Do
 
