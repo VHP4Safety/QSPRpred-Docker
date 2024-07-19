@@ -1,6 +1,7 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, jsonify
 from qsprpred.models import SklearnModel
 import os
+import json
 import traceback
 
 app = Flask(__name__)
