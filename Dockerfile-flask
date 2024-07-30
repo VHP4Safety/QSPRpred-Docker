@@ -18,7 +18,6 @@ COPY . .
 
 # Install any needed packages specified in requirements.txt
 RUN pip install -r requirements-flask.txt
-RUN pip install flask
 
 # Copy entrypoint script
 COPY entrypoint-flask.sh /usr/src/app/entrypoint-flask.sh
