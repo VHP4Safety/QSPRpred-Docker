@@ -17,7 +17,7 @@ header {
     display: block;
     margin-left: auto;
     margin-right: auto;
-    width: 50%;
+    width: 500px;
 }
 
 .container {
@@ -29,6 +29,7 @@ header {
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             overflow: hidden;
         }
+
 
 .table-container {
             max-height: 400px; /* Adjust this value as needed */

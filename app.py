@@ -26,11 +26,12 @@ def predict():
         if not model_names:
             return render_template('index.html', error="No model selected.")
         
-        smiles_list = []
         if smiles_input:
+            smiles_list = []
             smiles_list = [smile.strip() for smile in smiles_input.split(',')]
         
         if uploaded_file:
+            smiles_list = []
             uploaded_df = pd.read_csv(uploaded_file)
             if 'SMILES' in uploaded_df.columns:
                 smiles_list.extend(uploaded_df['SMILES'].tolist())
