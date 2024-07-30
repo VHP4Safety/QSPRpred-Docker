@@ -3,6 +3,7 @@ from qsprpred.models import SklearnModel
 import os
 import json
 import traceback
+import pandas as pd
 
 app = Flask(__name__)
 
@@ -20,9 +21,8 @@ def predict():
     try:
         smiles = request.form.get('smiles')
         model_name = request.form.get('model')
-        
-        if not smiles:
-            return render_template('index.html', error="No SMILES strings provided.")
+        file = request.files.get('file')
+
         if not model_name:
             return render_template('index.html', error="No model selected.")
         
@@ -32,7 +32,18 @@ def predict():
             return render_template('index.html', error="Selected model does not exist.")
         
         model = SklearnModel.fromFile(model_path)
-        smiles_list = [smile.strip() for smile in smiles.split(',')]
+
+        if file:
+            # Process uploaded CSV file
+            df = pd.read_csv(file)
+            if 'SMILES' not in df.columns:
+                return render_template('index.html', error="CSV file must contain a 'SMILES' column.")
+            smiles_list = df['SMILES'].tolist()
+        elif smiles:
+            smiles_list = [smile.strip() for smile in smiles.split(',')]
+        else:
+            return render_template('index.html', error="No SMILES strings provided.")
+        
         predictions = model.predictMols(smiles_list)
         predictions_formatted = [f"{pred[0]:.4f}" for pred in predictions]
         
