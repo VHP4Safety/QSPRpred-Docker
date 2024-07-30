@@ -15,9 +15,9 @@ One of the authors has provided us an example 'for agonists on the thyroid hormo
 Following the steps above should give a result like `[[6.14965] [9.2567]]`. 
 
 
-## Creating Docker Containers --> to be removed, as this functionality is included in the Flask app
+## Creating and using Docker Containers 
 
-### Container for Interactive Use
+### Container for Interactive Use --> to be removed, as this functionality is included in the Flask app
 
 Find the `Dockerfile` in the main directory. One can create the Docker image to make predictions on the terminal interactively with this file by using the following command: 
 
