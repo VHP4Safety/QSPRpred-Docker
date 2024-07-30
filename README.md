@@ -57,6 +57,8 @@ Once the container is running, navigate to http://localhost:5000 in your web bro
 - Select one or more prediction models.
 - Input multiple SMILES strings either through a text box or by uploading a CSV file.
 - Download the prediction results in various formats.
+![QSPRpred UI](/templates/img/FlaskUIQSPRpred.png?raw=true "UI")
+
 ### Using the API
 You can also interact with the Flask application via its API from your coding environment. Below are examples of how to use the API:
 
