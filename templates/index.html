@@ -5,14 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QSPRpred - SMILES Prediction</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.7.1/css/buttons.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
-     <script>
+    <script src="https://cdn.datatables.net/buttons/1.7.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.print.min.js"></script>
+    <script>
         $(document).ready(function() {
-            $('#resultsTable').DataTable({
+            $('#predictionsTable').DataTable({
                 dom: 'Bfrtip',
                 buttons: [
-                    'csv', 'excel', 'pdf', 'print'
+                    'csvHtml5',
+                    'excelHtml5',
+                    'pdfHtml5',
+                    'print'
                 ]
             });
         });
@@ -26,11 +35,11 @@
     <div class="container">
         <form action="/predict" method="post" enctype="multipart/form-data">
             <label for="model">Select Models:</label><br>
-            <select id="model" name="model" multiple required>
-                {% for model in models %}
-                <option value="{{ model }}">{{ model }}</option>
-                {% endfor %}
-            </select><br><br>
+            {% for model in models %}
+                <input type="checkbox" id="model_{{ loop.index }}" name="model" value="{{ model }}">
+                <label for="model_{{ loop.index }}">{{ model }}</label><br>
+            {% endfor %}
+            <br>
 
             <label for="smiles">Enter SMILES strings (comma-separated):</label><br>
             <input type="text" id="smiles" name="smiles" placeholder="Example: Cc1c(Cc2cc(I)c(OCC(=O)O)c(I)c2)c2c(cccc2)o1,O=c1cnn(-c2cc(Cl)c(Oc3ccc(O)c(S(=O)(=O)N4CCc5ccccc54)c3)c(Cl)c2)c(=O)[nH]1"><br><br>
