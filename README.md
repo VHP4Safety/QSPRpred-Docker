@@ -15,9 +15,9 @@ One of the authors has provided us an example 'for agonists on the thyroid hormo
 Following the steps above should give a result like `[[6.14965] [9.2567]]`. 
 
 
-## Creating Docker Containers
+## Creating and using Docker Containers 
 
-### Container for Interactive Use
+### Container for Interactive Use --> to be removed, as this functionality is included in the Flask app
 
 Find the `Dockerfile` in the main directory. One can create the Docker image to make predictions on the terminal interactively with this file by using the following command: 
 
@@ -37,22 +37,47 @@ docker exec qspr_test_container python /usr/src/app/docker_test/predict_interact
 
 This should give `6.1497` and `9.2567` for two SMILES used in the example above. 
 
-### Container for the Flask Application
+## Flask Application Deployment with Docker
+This guide covers the setup and usage of a Flask application for predictions via a Docker container. The application provides both a user interface for interacting with the model and an API for programmatic access.
 
-There is another Dockerfile, `Dockerfile-flask`, along with files required for deploying a Flask app that runs the predictions. To build and run this, use the following commands:
-```
+### Building the Docker Image
+To build the Docker image for the Flask application, use the following command:
+```sh
 docker build -t qspr_flask_image -f Dockerfile-flask .
 ```
-The run command includes a volume so that new models can be added, and made accessible via the service. 
-```
+### Running the Docker Container
+Run the Docker container with the following command. This command also mounts a local directory to the container to make model files accessible:
+```sh
 docker run -d -p 5000:5000 --name qspr_flask_container -v $(pwd)/models:/usr/src/app/models  qspr_flask_image
 ```
 
+### Accessing the Application
+Once the container is running, navigate to http://localhost:5000 in your web browser. You will see the Flask application interface which allows you to:
 
-## Things to Do
+- Select one or more prediction models.
+- Input multiple SMILES strings either through a text box or by uploading a CSV file.
+- Download the prediction results in various formats.
+![QSPRpred UI](/templates/img/FlaskUIQSPRpred.png?raw=true "UI")
 
-- Adjust the script/container in a way that it will take input from the user. 
-	- Please see `/docker_test/predict_interactive.py` for this. If it is correct, it should be taking (only one) input of SMILES from the terminal. So, if one runs `python predict_interactive.py "Cc1c(Cc2cc(I)c(OCC(=O)O)c(I)c2)c2c(cccc2)o1"`, the terminal should prompt `[[6.14965]]` which is the first output in the expected outcome. Note that there are two SMILES in the original example, `predict.py` which is why, I think, it prompts two values in the output. 
-	- The `predict_interactive.py` script is now updated to receive more than one SMILEs (see [this line](https://github.com/VHP4Safety/QSPRpred-Docker/blob/a9a5abf2663c6194fb8e2815e8d9b2edf0dddb00/docker_test/predict_interactive.py#L9) for how it is set up).
-- Create an UI for the "service". 
-	- A new Dockerfile, `Dockerfile-flask`, has been added to the repo along with the source code for the Flask app. 
+### Using the API
+You can also interact with the Flask application via its API from your coding environment. Below are examples of how to use the API:
+
+#### Example: JSON Output
+To initiate a prediction and receive the results in JSON format, use:
+```sh
+curl -X POST localhost:5000/api     -H "Content-Type: application/json"     -d '{
+        "smiles": ["C1=CC=CC=C1C(=O)NC2=CC=CC=C2", "CC(=O)OC1=CC=CC=C1C(=O)O"],
+        "models": ["P10827_RF_Model", "P10828_RF_Model"],
+        "format": "text"
+    }'
+```
+#### Example: CSV Output
+To receive the prediction results as a CSV file, use:
+```sh
+curl -X POST localhost:5000/api     -H "Content-Type: application/json"     -d '{
+        "smiles": ["C1=CC=CC=C1C(=O)NC2=CC=CC=C2", "CC(=O)OC1=CC=CC=C1C(=O)O"],
+        "models": ["P10827_RF_Model", "P10828_RF_Model"],
+        "format": "csv"
+    }' -o predictions.csv
+```
+
