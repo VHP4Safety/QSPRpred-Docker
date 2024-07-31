@@ -51,8 +51,8 @@
         <form action="/predict" method="post" enctype="multipart/form-data">
             <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
                 {% for model in models %}
-                <div class="model-tile">
-                    <input type="checkbox" id="model_{{ loop.index }}" name="model" value="{{ model.name }}">
+                <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
+                    <input type="checkbox" id="model_{{ loop.index }}" name="model" value="{{ model.name }}" {% if model.name in model_names %}checked{% endif %}>
                     <label for="model_{{ loop.index }}">
                         <strong>{{ model.name }}</strong><br>
                         Property: {{ model.target_property_name }}<br>
@@ -67,12 +67,13 @@
             </div>
             <br>
             <label for="smiles">Enter SMILES strings (comma-separated):</label><br>
-            <input type="text" id="smiles" name="smiles" placeholder="Example: Cc1c(Cc2cc(I)c(OCC(=O)O)c(I)c2)c2c(cccc2)o1,O=c1cnn(-c2cc(Cl)c(Oc3ccc(O)c(S(=O)(=O)N4CCc5ccccc54)c3)c(Cl)c2)c(=O)[nH]1"><br><br>
+            <input type="text" id="smiles" name="smiles" value="{{ smiles_input }}" placeholder="Example: Cc1c(Cc2cc(I)c(OCC(=O)O)c(I)c2)c2c(cccc2)o1,O=c1cnn(-c2cc(Cl)c(Oc3ccc(O)c(S(=O)(=O)N4CCc5ccccc54)c3)c(Cl)c2)c(=O)[nH]1"><br><br>
 
             <label for="file">or Upload CSV file with SMILES:</label><br>
             <input type="file" id="file" name="file" accept=".csv"><br><br>
             
             <input type="submit" value="Run">
+            <button type="submit" name="download_report" value="true">Download Report</button>
         </form>
         {% if data %}
     </div>
@@ -114,4 +115,3 @@
     </footer>
 </body>
 </html>
-
