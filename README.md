@@ -55,9 +55,9 @@ docker run -d -p 5000:5000 --name qspr_flask_container -v $(pwd)/models:/usr/src
 Once the container is running, navigate to http://localhost:5000 in your web browser. You will see the Flask application interface which allows you to:
 
 - Select one or more prediction models.
-- Input multiple SMILES strings either through a text box or by uploading a CSV file.
+- Input multiple SMILES strings either through a text box or by uploading a CSV file (e.g. the [smiles_sample.csv](smiles_sample.csv)).
 - Download the prediction results in various formats.
-![QSPRpred UI](/templates/img/FlaskUIQSPRpred.png?raw=true "UI")
+![QSPRpred UI](qsprpred-ui.png?raw=true "UI")
 
 ### Using the API
 You can also interact with the Flask application via its API from your coding environment. Below are examples of how to use the API:
