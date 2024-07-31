@@ -117,7 +117,7 @@ def predict():
                 model_info_list.append(model_info)
         
         table_data = [[smile] + [all_predictions[model][i] for model in model_names] for i, smile in enumerate(smiles_list)]
-        headers = ['SMILES'] + [f'Prediction ({model})' for model in model_names]
+        headers = ['SMILES'] + [f'Predicted pChEMBL value ({model})' for model in model_names]
 
         # Handle report download request
         if 'download_report' in request.form:
