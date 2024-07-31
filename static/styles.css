@@ -32,7 +32,7 @@ header {
 
 
 .table-container {
-            max-height: 400px; /* Adjust this value as needed */
+            max-height: 400px; 
     overflow-y: auto;
 }
 
@@ -117,7 +117,33 @@ footer img {
 }
 
 .table-container {
-    max-height: 400px; /* Adjust as needed */
+    max-height: 400px; 
     overflow-y: auto;
 }
+
+.model-tile {
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #e9f6fd;
+    position: relative;
+    transition: background-color 0.3s ease;
+}
+
+.model-tile:hover, .model-tile.checked {
+    background-color: #ffe6f4;  
+}
+
+.model-tile input[type="checkbox"] {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+.model-tile label {
+    display: block;
+    cursor: pointer;
+    margin-right: 30px;  
+}
+
 

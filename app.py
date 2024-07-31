@@ -12,65 +12,65 @@ app = Flask(__name__)
 # Define the models directory
 MODELS_DIR = 'models'
 
+def extract_model_info(directory):
+    models_info = []
+    for d in os.listdir(directory):
+        meta_path = os.path.join(directory, d, f"{d}_meta.json")
+        if os.path.isfile(meta_path):
+            with open(meta_path, 'r') as meta_file:
+                meta_data = json.load(meta_file)
+                state = meta_data['py/state']
+                model_info = {
+                    'name': state['name'],
+                    'target_property_name': state['targetProperties'][0]['py/state']['name'],
+                    'target_property_task': state['targetProperties'][0]['py/state']['task']['py/reduce'][1]['py/tuple'][0],
+                    'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
+                    'radius': state['featureCalculators'][0]['py/state']['radius'],
+                    'nBits': state['featureCalculators'][0]['py/state']['nBits'],
+                    'algorithm': state['alg'].split('.')[-1]
+                }
+                models_info.append(model_info)
+    return models_info
+
 @app.route('/')
 def home():
-    # List available models
-    available_models = [d for d in os.listdir(MODELS_DIR) if os.path.isdir(os.path.join(MODELS_DIR, d))]
+    available_models = extract_model_info(MODELS_DIR)
     return render_template('index.html', models=available_models)
 
 @app.route('/predict', methods=['POST'])
 def predict():
+    available_models = extract_model_info(MODELS_DIR)
     try:
         smiles_input = request.form.get('smiles')
         uploaded_file = request.files.get('file')
         model_names = request.form.getlist('model')
         
         if not model_names:
-            return render_template('index.html', error="No model selected.")
+            return render_template('index.html', models=available_models, error="No model selected.")
         
-        if smiles_input:
-            smiles_list = []
-            smiles_list = [smile.strip() for smile in smiles_input.split(',')]
-        
+        smiles_list = [smile.strip() for smile in smiles_input.split(',')] if smiles_input else []
         if uploaded_file:
-            smiles_list = []
             uploaded_df = pd.read_csv(uploaded_file)
-            if 'SMILES' in uploaded_df.columns:
-                smiles_list.extend(uploaded_df['SMILES'].tolist())
+            smiles_list.extend(uploaded_df['SMILES'].tolist())
         
         if not smiles_list:
-            return render_template('index.html', error="No SMILES strings provided.")
+            return render_template('index.html', models=available_models, error="No SMILES strings provided.")
         
         all_predictions = {}
-        
         for model_name in model_names:
             model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")
-            if not os.path.exists(model_path):
-                return render_template('index.html', error=f"Model {model_name} does not exist.")
-            
             model = SklearnModel.fromFile(model_path)
             predictions = model.predictMols(smiles_list)
-            predictions_formatted = [f"{pred[0]:.4f}" for pred in predictions]
-            all_predictions[model_name] = predictions_formatted
+            all_predictions[model_name] = [f"{pred[0]:.4f}" for pred in predictions]
         
-        # Prepare data for table
-        table_data = []
-        for i, smile in enumerate(smiles_list):
-            row = [smile]
-            for model_name in model_names:
-                row.append(all_predictions[model_name][i])
-            table_data.append(row)
-        
-        # Prepare header
+        table_data = [[smile] + [all_predictions[model][i] for model in model_names] for i, smile in enumerate(smiles_list)]
         headers = ['SMILES'] + [f'Prediction ({model})' for model in model_names]
-        
-        available_models = [d for d in os.listdir(MODELS_DIR) if os.path.isdir(os.path.join(MODELS_DIR, d))]
         return render_template('index.html', models=available_models, headers=headers, data=table_data)
     except Exception as e:
         print(f"Exception occurred: {e}")
         traceback.print_exc()
-        available_models = [d for d in os.listdir(MODELS_DIR) if os.path.isdir(os.path.join(MODELS_DIR, d))]
         return render_template('index.html', models=available_models, error="An error occurred while processing the request.")
+
 
 @app.route('/api', methods=['POST'])
 def apipredict():
