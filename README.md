@@ -38,6 +38,8 @@ docker exec qspr_test_container python /usr/src/app/docker_test/predict_interact
 This should give `6.1497` and `9.2567` for two SMILES used in the example above. 
 
 ## Flask Application Deployment with Docker
+[![Docker Image CI](https://github.com/VHP4Safety/QSPRpred-Docker/actions/workflows/docker-image.yml/badge.svg)](https://github.com/VHP4Safety/QSPRpred-Docker/actions/workflows/docker-image.yml)
+
 This guide covers the setup and usage of a Flask application for predictions via a Docker container. The application provides both a user interface for interacting with the model and an API for programmatic access.
 
 ### Building the Docker Image
