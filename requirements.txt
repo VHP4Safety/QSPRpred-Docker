@@ -1,2 +1,5 @@
 qsprpred
 rdkit
+flask
+pandas
+reportlab

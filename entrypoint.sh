@@ -1,5 +1,5 @@
 #!/bin/sh
 
-# Keep the container running
-tail -f /dev/null
+# Start Flask app
+python app.py
 
