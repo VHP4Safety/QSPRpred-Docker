@@ -6,6 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     libxrender1 \
+    libexpat1 \
     libxext6 \
     libx11-6 \
     && rm -rf /var/lib/apt/lists/*
