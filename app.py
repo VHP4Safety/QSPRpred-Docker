@@ -62,6 +62,7 @@ def extract_model_info(directory):
                 state = meta_data['py/state']
                 model_info = {
                     'name': state['name'],
+                    'pref_name': state['pref_name'],
                     'target_property_name': state['targetProperties'][0]['py/state']['name'],
                     'target_property_task': state['targetProperties'][0]['py/state']['task']['py/reduce'][1]['py/tuple'][0],
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
@@ -166,6 +167,7 @@ def predict():
                 state = meta_data['py/state']
                 model_info = {
                     'name': state['name'],
+                    'pref_name': state['pref_name'],
                     'target_property_name': state['targetProperties'][0]['py/state']['name'],
                     'target_property_task': state['targetProperties'][0]['py/state']['task']['py/reduce'][1]['py/tuple'][0],
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
@@ -217,6 +219,7 @@ def create_report(model_info_list, headers, table_data):
     # Add model metadata
     for model_info in model_info_list:
         elements.append(Paragraph(f"Model: {model_info['name']}", styles['Heading2']))
+        elements.append(Paragraph(f"Model Name: {model_info['pref_name']}", styles['Heading2']))
         elements.append(Paragraph(f"Target Property Name: {model_info['target_property_name']}", styles['Normal']))
         elements.append(Paragraph(f"Target Property Task: {model_info['target_property_task']}", styles['Normal']))
         elements.append(Paragraph(f"Feature Calculator: {model_info['feature_calculator']}", styles['Normal']))
