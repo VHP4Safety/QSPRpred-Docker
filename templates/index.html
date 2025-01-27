@@ -66,6 +66,7 @@
     <img src="{{ url_for('static', filename='img/logo.png') }}" alt="VHP4Safety Logo" class="center">
     <header>
         <h1>QSPRpred - pChEMBL Value Prediction</h1>
+        <h3>This tool allows users to predict the activity of their chemicals of interest for various molecular initiation events from the VHP4Safety case studies. This prediction is done by target-specific, pretrained QSAR models. Next to the model name the containers below also show some model properties. Compounds should be entered as SMILES strings. The predicted bioactivity is given as predicted pchembl. This translates to a concentration of 10^-pchembl for a half maximal response. For example, an IC50 measurement of 1nM would have a pChEMBL value of 9.</h3>
     </header>
     <div class="container">
         <form action="/predict" method="post" enctype="multipart/form-data">
