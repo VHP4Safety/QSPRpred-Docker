@@ -2,6 +2,7 @@
     "py/object": "qsprpred.models.scikit_learn.SklearnModel",
     "py/state": {
         "name": "P10827_RF_Model",
+        "pref_name": "Thyroid hormone receptor alpha",
         "baseDir": ".",
         "targetProperties": [
             {

@@ -13,9 +13,19 @@
     <script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.html5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.print.min.js"></script>
+    <style>
+        img {
+            max-width: 150px;
+            max-height: 150px;
+            object-fit: contain;
+        }
+        table.dataTable td, table.dataTable th {
+            text-align: center;
+        }
+    </style>
     <script>
         $(document).ready(function() {
-            $('#predictionsTable').DataTable({
+            var table = $('#predictionsTable').DataTable({
                 dom: 'Bfrtip',
                 buttons: [
                     'csvHtml5',
@@ -23,7 +33,17 @@
                     'pdfHtml5',
                     'print'
                 ],
-                scrollX: true
+                scrollX: true,
+                autoWidth: false, // Prevent automatic column width adjustment
+                columnDefs: [
+                    { targets: [1], visible: false},
+                    { targets: '_all', visible: true, width: '150px' } // Adjust this width as needed
+                ]
+            });
+    
+            // Adjust columns after the table is shown or modified
+            $('#predictionsTable').on('shown.bs.collapse', function () {
+                table.columns.adjust();
             });
         });
     </script>
@@ -45,7 +65,7 @@
 <body>
     <img src="{{ url_for('static', filename='img/logo.png') }}" alt="VHP4Safety Logo" class="center">
     <header>
-        <h1>QSPRpred - pChEMBL value  Prediction</h1>
+        <h1>QSPRpred - pChEMBL Value Prediction</h1>
     </header>
     <div class="container">
         <form action="/predict" method="post" enctype="multipart/form-data">
@@ -54,7 +74,8 @@
                 <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
                     <input type="checkbox" id="model_{{ loop.index }}" name="model" value="{{ model.name }}" {% if model.name in model_names %}checked{% endif %}>
                     <label for="model_{{ loop.index }}">
-                        <strong>{{ model.name }}</strong><br>
+                        <strong>{{ model.pref_name }}</strong><br>
+                        Model: {{ model.name }}<br>
                         Property: {{ model.target_property_name }}<br>
                         Task: {{ model.target_property_task }}<br>
                         Calculator: {{ model.feature_calculator }}<br>
@@ -85,7 +106,8 @@
         <table id="predictionsTable" class="display">
             <thead>
                 <tr>
-                    {% for header in headers %}
+                    <th>Structure</th>
+                    {% for header in headers[1:] %}
                     <th>{{ header }}</th>
                     {% endfor %}
                 </tr>
@@ -93,7 +115,14 @@
             <tbody>
                 {% for row in data %}
                 <tr>
-                    {% for cell in row %}
+                    <td>
+                        {% if row[0] %}
+                        <img src="{{ row[0] }}" alt="Molecule Structure">
+                        {% else %}
+                        <p>Invalid SMILES</p>
+                        {% endif %}
+                    </td>
+                    {% for cell in row[1:] %}
                     <td>{{ cell }}</td>
                     {% endfor %}
                 </tr>

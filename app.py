@@ -1,17 +1,20 @@
-import logging
-from flask import Flask, request, render_template, jsonify, Response, send_file
-from qsprpred.models import SklearnModel
-import os
-import io
+import base64
 import csv
+import io
 import json
-import traceback
+import logging
+import os
+
 import pandas as pd
-from reportlab.lib.pagesizes import letter
+from flask import Flask, Response, jsonify, render_template, request
+from qsprpred.models import SklearnModel
+from rdkit import Chem
+from rdkit.Chem import Draw
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -23,6 +26,34 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 # Define the models directory
 MODELS_DIR = 'models'
 
+# define RDKit image implementer
+def smiles_to_image(smiles):
+    try:
+        mol = Chem.MolFromSmiles(smiles) # attempt conversion to RDKit molecule
+        if mol is None: # return None if not possible
+            return None
+        img = Draw.MolToImage(mol) # Image generation
+        buffer = io.BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+        img_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+        buffer.close()
+        return f"data:image/png;base64,{img_base64}"
+    except Exception as e:
+        logging.error(f"Error generating image for SMILES {smiles}: {e}") # Log the error message if any exception occurs during the process.
+        return None
+
+# define invalid SMILES scrubber
+def validate_smiles(smiles_list):
+    """
+    Validates a list of SMILES strings. Returns a list of invalid SMILES.
+    """
+    invalid_smiles = []
+    for smile in smiles_list:
+        if Chem.MolFromSmiles(smile) is None:
+            invalid_smiles.append(smile)
+    return invalid_smiles
+    
 def extract_model_info(directory):
     models_info = []
     for d in os.listdir(directory):
@@ -33,6 +64,7 @@ def extract_model_info(directory):
                 state = meta_data['py/state']
                 model_info = {
                     'name': state['name'],
+                    'pref_name': state['pref_name'],
                     'target_property_name': state['targetProperties'][0]['py/state']['name'],
                     'target_property_task': state['targetProperties'][0]['py/state']['task']['py/reduce'][1]['py/tuple'][0],
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
@@ -69,30 +101,50 @@ def predict():
             return render_template('index.html', models=available_models, error="No model selected.")
         
         smiles_list = []
+        invalid_smiles = []
+
+        # Handle SMILES string input
         if smiles_input:
-            smiles_list.extend([smile.strip() for smile in smiles_input.split(',')])
+            input_smiles = [smile.strip() for smile in smiles_input.split(',')]
+            
+            # Check if only one SMILES string is entered
+            if len(input_smiles) == 1:
+                if Chem.MolFromSmiles(input_smiles[0]) is None:  # Check for invalid single SMILES
+                    logging.error(f"Invalid SMILES string: {input_smiles[0]}")  # Log the invalid SMILES
+                    return render_template('index.html', models=available_models, error="Invalid SMILES string")  # Display error for single invalid SMILES
+                else:
+                    smiles_list.extend(input_smiles)  # Add valid SMILES to processing list
+            else:
+                invalid_smiles.extend([smile for smile in input_smiles if Chem.MolFromSmiles(smile) is None])  # Collect invalid SMILES
+                smiles_list.extend([smile for smile in input_smiles if Chem.MolFromSmiles(smile) is not None])  # Collect valid SMILES
         
+        # Handle uploaded file
         if uploaded_file and uploaded_file.filename != '':
             file_name = uploaded_file.filename
             logging.debug("Processing uploaded file.")
             uploaded_df = pd.read_csv(uploaded_file)
             logging.debug(f"Uploaded file contents: {uploaded_df.head()}")
             if 'SMILES' in uploaded_df.columns:
-                smiles_list.extend(uploaded_df['SMILES'].tolist())
+                file_smiles = uploaded_df['SMILES'].tolist()
+                invalid_smiles.extend([smile for smile in file_smiles if Chem.MolFromSmiles(smile) is None])  # Collect invalid SMILES from file
+                smiles_list.extend([smile for smile in file_smiles if Chem.MolFromSmiles(smile) is not None])  # Collect valid SMILES from file
         elif file_name:
-            # Reprocess the previously uploaded file
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
             if os.path.exists(file_path):
                 logging.debug("Reprocessing previous uploaded file.")
                 uploaded_df = pd.read_csv(file_path)
                 if 'SMILES' in uploaded_df.columns:
-                    smiles_list.extend(uploaded_df['SMILES'].tolist())
+                    file_smiles = uploaded_df['SMILES'].tolist()
+                    invalid_smiles.extend([smile for smile in file_smiles if Chem.MolFromSmiles(smile) is None])  # Collect invalid SMILES from previous file
+                    smiles_list.extend([smile for smile in file_smiles if Chem.MolFromSmiles(smile) is not None])  # Collect valid SMILES from previous file
         
         logging.debug(f"Final SMILES list: {smiles_list}")
+        logging.debug(f"Invalid SMILES detected: {invalid_smiles}")  # Log invalid SMILES
         
-        if not smiles_list:
-            logging.error("No SMILES strings provided.")
-            return render_template('index.html', models=available_models, error="No SMILES strings provided.")
+        if not smiles_list and not invalid_smiles:
+            error_message = "No SMILES strings provided"
+            logging.error(error_message)
+            return render_template('index.html', models=available_models, error=error_message)
         
         all_predictions = {}
         model_info_list = []
@@ -101,7 +153,15 @@ def predict():
             model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")
             model = SklearnModel.fromFile(model_path)
             predictions = model.predictMols(smiles_list)
-            all_predictions[model_name] = [f"{pred[0]:.4f}" for pred in predictions]
+            
+            # Check if the model is regression or classification
+            if model.task.isRegression():
+                formatted_predictions = [f"{pred[0]:.2f}" for pred in predictions]
+            else:
+                # Format classification output as Active/Inactive
+                formatted_predictions = ["Active" if pred[0] == 1 else "Inactive" for pred in predictions]
+            
+            all_predictions[model_name] = formatted_predictions
             
             # Extract model info for report
             with open(model_path, 'r') as meta_file:
@@ -109,6 +169,7 @@ def predict():
                 state = meta_data['py/state']
                 model_info = {
                     'name': state['name'],
+                    'pref_name': state['pref_name'],
                     'target_property_name': state['targetProperties'][0]['py/state']['name'],
                     'target_property_task': state['targetProperties'][0]['py/state']['task']['py/reduce'][1]['py/tuple'][0],
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
@@ -118,16 +179,31 @@ def predict():
                 }
                 model_info_list.append(model_info)
         
-        table_data = [[smile] + [all_predictions[model][i] for model in model_names] for i, smile in enumerate(smiles_list)]
-        headers = ['SMILES'] + [f'Predicted pChEMBL value ({model})' for model in model_names]
+        table_data = []
+        for i, smile in enumerate(smiles_list): 
+            image_data = smiles_to_image(smile)
+            row = [image_data] + [smile] + [all_predictions[model][i] for model in model_names]
+            table_data.append(row)
+            
+        # Update headers
+        headers = ['Structure', 'SMILES']
+        for model_name in model_names:
+            model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")               
+            model = SklearnModel.fromFile(model_path)
+            
+            if model.task.isRegression():
+                # Format regression table header
+                headers.append(f'Predicted pChEMBL Value ({model_name})')
+            else:
+                # Format classification table header
+                headers.append(f'Predicted class label ({model_name})')
 
-        # Handle report download request
-        if 'download_report' in request.form:
-            report_buffer = create_report(model_info_list, headers, table_data)
-            return send_file(report_buffer, as_attachment=True, download_name="prediction_report.pdf", mimetype='application/pdf')
+        error_message = None
+        if invalid_smiles:
+            error_message = f"Invalid SMILES, could not be processed: {', '.join(invalid_smiles)}"  # Mention invalid SMILES in error message
         
-        return render_template('index.html', models=available_models, headers=headers, data=table_data, smiles_input=smiles_input, model_names=model_names, file_name=file_name)
-    except Exception as e:
+        return render_template('index.html', models=available_models, headers=headers, data=table_data, smiles_input=smiles_input, model_names=model_names, file_name=file_name, error=error_message)
+    except Exception:
         logging.exception("An error occurred while processing the request.")
         return render_template('index.html', models=available_models, error="An error occurred while processing the request.")
 
@@ -145,6 +221,7 @@ def create_report(model_info_list, headers, table_data):
     # Add model metadata
     for model_info in model_info_list:
         elements.append(Paragraph(f"Model: {model_info['name']}", styles['Heading2']))
+        elements.append(Paragraph(f"Model Name: {model_info['pref_name']}", styles['Heading2']))
         elements.append(Paragraph(f"Target Property Name: {model_info['target_property_name']}", styles['Normal']))
         elements.append(Paragraph(f"Target Property Task: {model_info['target_property_task']}", styles['Normal']))
         elements.append(Paragraph(f"Feature Calculator: {model_info['feature_calculator']}", styles['Normal']))
