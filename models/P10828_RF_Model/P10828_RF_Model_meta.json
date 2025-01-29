@@ -3,6 +3,7 @@
     "py/state": {
         "name": "P10828_RF_Model",
         "pref_name": "Thyroid hormone receptor beta",
+        "case_study": "thyroid",
         "baseDir": ".",
         "targetProperties": [
             {

@@ -65,6 +65,7 @@ def extract_model_info(directory):
                 model_info = {
                     'name': state['name'],
                     'pref_name': state['pref_name'],
+                    'case_study': state['case_study'],
                     'target_property_name': state['targetProperties'][0]['py/state']['name'],
                     'target_property_task': state['targetProperties'][0]['py/state']['task']['py/reduce'][1]['py/tuple'][0],
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
@@ -170,6 +171,7 @@ def predict():
                 model_info = {
                     'name': state['name'],
                     'pref_name': state['pref_name'],
+                    'case_study': state['case_study'],
                     'target_property_name': state['targetProperties'][0]['py/state']['name'],
                     'target_property_task': state['targetProperties'][0]['py/state']['task']['py/reduce'][1]['py/tuple'][0],
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],

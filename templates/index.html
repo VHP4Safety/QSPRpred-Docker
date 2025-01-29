@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QSPRpred - SMILES Prediction</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.7.1/css/buttons.dataTables.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/1.7.1/js/dataTables.buttons.min.js"></script>
@@ -69,23 +72,61 @@
     </header>
     <div class="container">
         <form action="/predict" method="post" enctype="multipart/form-data">
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
-                {% for model in models %}
-                <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
-                    <input type="checkbox" id="model_{{ loop.index }}" name="model" value="{{ model.name }}" {% if model.name in model_names %}checked{% endif %}>
-                    <label for="model_{{ loop.index }}">
-                        <strong>{{ model.pref_name }}</strong><br>
-                        Model: {{ model.name }}<br>
-                        Property: {{ model.target_property_name }}<br>
-                        Task: {{ model.target_property_task }}<br>
-                        Calculator: {{ model.feature_calculator }}<br>
-                        Radius: {{ model.radius }}<br>
-                        nBits: {{ model.nBits }}<br>
-                        Algorithm: {{ model.algorithm }}
-                    </label>
+            <p>This tool allows users to predict the activity of their chemicals of interest for various molecular initiation events from the VHP4Safety case studies. This prediction is done by target-specific, pretrained QSAR models. Next to the model name the containers below also show some model properties. Compounds should be entered as SMILES strings. The predicted bioactivity is given as predicted pchembl. This translates to a concentration of 10^-pchembl for a half maximal response. For example, an IC50 measurement of 1nM would have a pChEMBL value of 9.</p>
+                
+            <ul class="nav nav-tabs">
+                <li class="active"><a data-toggle="tab" href="#thyroid">Thyroid</a></li>
+                <li><a data-toggle="tab" href="#pd">Parkinson's Disease</a></li>
+                <li><a data-toggle="tab" href="#nephrotox">Nephrotoxicity</a></li>
+            </ul>
+ 
+            <div class="tab-content">
+                <div id="thyroid" class="tab-pane fade in active">
+                    <label>MIE models:</label><br>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
+                        {% for model in models if model.case_study == 'thyroid' %}
+                        <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
+                            <input type="checkbox" id="model_{{ loop.index }}" name="model" value="{{ model.name }}" {% if model.name in model_names %}checked{% endif %}>
+                            <label for="model_{{ loop.index }}">
+                                <strong>{{ model.pref_name }}</strong><br>
+                                Model: {{ model.name }}<br>
+                                Property: {{ model.target_property_name }}<br>
+                                Task: {{ model.target_property_task }}<br>
+                                Calculator: {{ model.feature_calculator }}<br>
+                                Radius: {{ model.radius }}<br>
+                                nBits: {{ model.nBits }}<br>
+                                Algorithm: {{ model.algorithm }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
-                {% endfor %}
+
+                <div id="pd" class="tab-pane fade">
+                    <label>MIE models:</label><br>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
+                        {% for model in models if model.case_study == 'pd' %}
+                        <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
+                            <input type="checkbox" id="model_{{ loop.index }}" name="model" value="{{ model.name }}" {% if model.name in model_names %}checked{% endif %}>
+                            <label for="model_{{ loop.index }}">
+                                <strong>{{ model.pref_name }}</strong><br>
+                                Model: {{ model.name }}<br>
+                                Property: {{ model.target_property_name }}<br>
+                                Task: {{ model.target_property_task }}<br>
+                                Calculator: {{ model.feature_calculator }}<br>
+                                Radius: {{ model.radius }}<br>
+                                nBits: {{ model.nBits }}<br>
+                                Algorithm: {{ model.algorithm }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div id="nephrotox" class="tab-pane fade">
+                <p>MIE models for the nephrotoxicity case study are in progress.</p>
             </div>
+                
+            
             <br>
             <label for="smiles">Enter SMILES strings (comma-separated):</label><br>
             <input type="text" id="smiles" name="smiles" value="{{ smiles_input }}" placeholder="Example: Cc1c(Cc2cc(I)c(OCC(=O)O)c(I)c2)c2c(cccc2)o1,O=c1cnn(-c2cc(Cl)c(Oc3ccc(O)c(S(=O)(=O)N4CCc5ccccc54)c3)c(Cl)c2)c(=O)[nH]1"><br><br>
@@ -95,6 +136,7 @@
             
             <input type="submit" value="Run">
             <button type="submit" name="download_report" value="true">Generate Report</button>
+        </div>
         </form>
         {% if data %}
     </div>
