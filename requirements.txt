@@ -1,5 +1,6 @@
 qsprpred
 rdkit
 flask
+flask_cors
 pandas
 reportlab
