@@ -7,6 +7,7 @@ import os
 
 import pandas as pd
 from flask import Flask, Response, jsonify, render_template, request
+from flask_cors import CORS
 from qsprpred.models import SklearnModel
 from rdkit import Chem
 from rdkit.Chem import Draw
@@ -15,7 +16,6 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)  # Allow all origins by default
@@ -78,6 +78,7 @@ def extract_model_info(directory):
     return models_info
 
 @app.route('/')
+@app.route('/predict')
 def home():
     available_models = extract_model_info(MODELS_DIR)
     return render_template('index.html', models=available_models)
