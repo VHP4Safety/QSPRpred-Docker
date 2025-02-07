@@ -236,6 +236,7 @@ def predict():
                 id_top = get_nearest_neighbor(smile, ms)
                 nearest_neighbor = train_df.iloc[id_top]['SMILES']
                 doi_nn = train_df.iloc[id_top]['doi']
+                doi_nn = 'https://doi.org/' + doi_nn
                 if len(doi_nn) == 0:
                     doi_nn = train_df.iloc[id_top]['all_doc_ids']
                 image_data_nn = smiles_to_image(nearest_neighbor)
