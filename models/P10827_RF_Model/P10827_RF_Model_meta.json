@@ -3,7 +3,7 @@
     "py/state": {
         "name": "P10827_RF_Model",
         "pref_name": "Thyroid hormone receptor alpha",
-        "case_study": "thyroid",
+        "case_study": "thyroid old",
         "baseDir": ".",
         "targetProperties": [
             {

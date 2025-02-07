@@ -171,12 +171,18 @@ def predict():
             return render_template('index.html', models=available_models, error=error_message)
         
         all_predictions = {}
+        all_ads = {}
         model_info_list = []
         for model_name in model_names:
             logging.debug(f"Processing model: {model_name}")
             model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")
             model = SklearnModel.fromFile(model_path)
-            predictions = model.predictMols(smiles_list)
+            ad = []
+            if getattr(model, 'applicabilityDomain', None):
+                predictions, ad = model.predictMols(smiles_list, use_applicability_domain=True)
+                ad = list(ad)
+            else:
+                predictions = model.predictMols(smiles_list)
             
             # Check if the model is regression or classification
             if model.task.isRegression():
@@ -184,8 +190,10 @@ def predict():
             else:
                 # Format classification output as Active/Inactive
                 formatted_predictions = ["Active" if pred[0] == 1 else "Inactive" for pred in predictions]
-            
+
             all_predictions[model_name] = formatted_predictions
+            all_ads[model_name] = ad
+
             
             # Extract model info for report
             with open(model_path, 'r') as meta_file:
@@ -208,38 +216,54 @@ def predict():
         
         for i, smile in enumerate(smiles_list): 
             image_data = smiles_to_image(smile)
-            row = [image_data] + [smile] + [all_predictions[model][i] for model in model_names]
+            if getattr(model, 'applicabilityDomain', None):
+                row = [image_data] + [smile] + [all_predictions[model][i] + f' ({str(all_ads[model][i])})' for model in model_names]
+            else:
+                row = [image_data] + [smile] + [all_predictions[model][i] for model in model_names]
+
             table_data.append(row)
                         
         # Update headers
         table_data_extensive = []
         headers = ['Structure', 'SMILES']
-        headers_extensive = ['Model', 'Structure', 'SMILES', 'Nearest Neighbor', 'Source', 'Predicted pChEMBL Value']
+        headers_extensive = ['Model', 'Structure', 'SMILES', 'Nearest Neighbor', 'Source', 'Predicted pChEMBL Value', 'Within Applicability Domain']
         for model_name in model_names:
             accession = model_name.split("_")[0]
             train_df = pd.read_csv(f'data/{accession}_Data/train_full_model_{accession}.csv').reset_index()
             train_smiles = train_df['SMILES'].to_list()
             ms = [Chem.MolFromSmiles(x) for x in train_smiles]
-            row = [] + [all_predictions[model_name][i]]
             model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")               
             model = SklearnModel.fromFile(model_path)
             
-            if model.task.isRegression():
-                # Format regression table header
-                headers.append(f'Predicted pChEMBL Value ({model_name})')
+            if getattr(model, 'applicabilityDomain', None):
+                if model.task.isRegression():
+                    # Format regression table header
+                    headers.append(f'Predicted pChEMBL Value (within AD) ({model_name})')
+                else:
+                    # Format classification table header
+                    headers.append(f'Predicted class label (within AD) ({model_name})')
             else:
-                # Format classification table header
-                headers.append(f'Predicted class label ({model_name})')
+                if model.task.isRegression():
+                    # Format regression table header
+                    headers.append(f'Predicted pChEMBL Value ({model_name})')
+                else:
+                    # Format classification table header
+                    headers.append(f'Predicted class label ({model_name})')
+
             
             for i, smile in enumerate(smiles_list): 
                 image_data = smiles_to_image(smile)
                 id_top = get_nearest_neighbor(smile, ms)
                 nearest_neighbor = train_df.iloc[id_top]['SMILES']
                 doi_nn = train_df.iloc[id_top]['doi']
-                if len(doi_nn) == 0:
+                if doi_nn:
                     doi_nn = train_df.iloc[id_top]['all_doc_ids']
                 image_data_nn = smiles_to_image(nearest_neighbor)
-                row = [model_name] + [image_data] + [smile] + [image_data_nn] + [nearest_neighbor] + [doi_nn] + [all_predictions[model_name][i]]
+                if getattr(model, 'applicabilityDomain', None):
+                    row = [model_name] + [image_data] + [smile] + [image_data_nn] + [nearest_neighbor] + [doi_nn] + [all_predictions[model_name][i]] + [all_ads[model_name][i]]
+                else:
+                    row = [model_name] + [image_data] + [smile] + [image_data_nn] + [nearest_neighbor] + [doi_nn] + [all_predictions[model_name][i]]
+
                 table_data_extensive.append(row)
 
         error_message = None
