@@ -140,6 +140,7 @@
                                 Radius: {{ model.radius }}<br>
                                 nBits: {{ model.nBits }}<br>
                                 Algorithm: {{ model.algorithm }}
+								<a href="url">Download QMRF here</a> 
                             </label>
                         </div>
                         {% endfor %}
@@ -200,7 +201,7 @@
                                         {% endif %}
                 </td>
                                     {% for cell in row[1:] %}
-                <td>{{ cell }}</td>
+                <td><a href="url">{{ cell }}</a> </td>
                                     {% endfor %}
                 </tr>
                                 {% endfor %}
@@ -233,10 +234,10 @@
                     </td>
                     <td>{{ row[2] }}</td>
                     <td>
-                        <img src="{{ row[3] }}" alt="Molecule Structure Nearest Neighbor 2">
+                       <a href="url"> <img src="{{ row[3] }}" alt="Molecule Structure Nearest Neighbor 2"> </a>
                     </td>
                     {% for cell in row[5:] %}
-                    <td>{{ cell }}</td>
+                    <td><a href="url">{{ cell }}</a></td>
                     {% endfor %}
                 </tr>
                 {% endfor %}
