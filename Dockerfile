@@ -21,6 +21,7 @@ RUN pip install -r requirements.txt
 # Copy the current directory contents into the container at /usr/src/app
 COPY models models
 COPY static static
+COPY data data
 COPY templates templates
 COPY app.py entrypoint.sh ./
 

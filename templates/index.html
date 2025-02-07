@@ -51,6 +51,28 @@
         });
     </script>
     <script>
+        $(document).ready(function() {
+            var table = $('#predictionsTable2').DataTable({
+                dom: 'Bfrtip',
+                buttons: [
+                    'csvHtml5',
+                    'excelHtml5',
+                    'pdfHtml5',
+                    'print'
+                ],
+                scrollX: true,
+                autoWidth: false, // Prevent automatic column width adjustment
+                columnDefs: [
+                    { targets: '_all', visible: true, width: '150px' } // Adjust this width as needed
+                ]
+            });
+            // Adjust columns after the table is shown or modified
+            $('#predictionsTable2').on('shown.bs.collapse', function () {
+                table.columns.adjust();
+            });
+        });
+    </script>
+    <script>
         document.addEventListener('DOMContentLoaded', function () {
             var checkboxes = document.querySelectorAll('.model-tile input[type="checkbox"]');
             checkboxes.forEach(function(checkbox) {
@@ -95,7 +117,8 @@
                                 Calculator: {{ model.feature_calculator }}<br>
                                 Radius: {{ model.radius }}<br>
                                 nBits: {{ model.nBits }}<br>
-                                Algorithm: {{ model.algorithm }}
+                                Algorithm: {{ model.algorithm }}<br>
+                                <a href="url">Download QMRF here</a> 
                             </label>
                         </div>
                         {% endfor %}
@@ -145,26 +168,74 @@
         <h2>Predictions</h2>
     </header>
     <div class="container">
-        <table id="predictionsTable" class="display">
+        <ul class="nav nav-tabs">
+        <li class="active">
+        <a data-toggle="tab" href="#Output">Simple Output</a>
+        </li>
+        <li>
+        <a data-toggle="tab" href="#COutput">Comprehensive output</a>
+        </li>
+        </ul>
+            
+
+        <div class="tab-content">
+            <div id="Output" class="tab-pane fade in active">
+            <table id="predictionsTable" class="display">
+                <thead>
+                <tr>
+                <th>Structure</th>
+                                    {% for header in headers[1:] %}
+                <th>{{ header }}</th>
+                                    {% endfor %}
+                </tr>
+                </thead>
+                <tbody>
+                                {% for row in data %}
+                <tr>
+                <td>
+                                        {% if row[0] %}
+                <img src="{{ row[0] }}" alt="Molecule Structure">
+                                        {% else %}
+                <p>Invalid SMILES</p>
+                                        {% endif %}
+                </td>
+                                    {% for cell in row[1:] %}
+                <td>{{ cell }}</td>
+                                    {% endfor %}
+                </tr>
+                                {% endfor %}
+                </tbody>
+                </table>
+                </div>
+                
+
+
+            <div id="COutput" class="tab-pane fade">
+        <table id="predictionsTable2" class="display">
             <thead>
                 <tr>
-                    <th>Structure</th>
-                    {% for header in headers[1:] %}
-                    <th>{{ header }}</th>
+                    <th>Model</th>
+                    {% for header in headers_extensive[1:] %}
+                    <th title="pChEMBL is a ...">{{ header }}</th>
                     {% endfor %}
                 </tr>
             </thead>
             <tbody>
-                {% for row in data %}
+                {% for row in data_extensive %}
                 <tr>
+                    <td>{{ row[0] }}</td>
                     <td>
-                        {% if row[0] %}
-                        <img src="{{ row[0] }}" alt="Molecule Structure">
+                        {% if row[1] %}
+                        <img src="{{ row[1] }}" alt="Molecule Structure">
                         {% else %}
                         <p>Invalid SMILES</p>
                         {% endif %}
                     </td>
-                    {% for cell in row[1:] %}
+                    <td>{{ row[2] }}</td>
+                    <td>
+                        <img src="{{ row[3] }}" alt="Molecule Structure Nearest Neighbor 2">
+                    </td>
+                    {% for cell in row[5:] %}
                     <td>{{ cell }}</td>
                     {% endfor %}
                 </tr>
@@ -177,6 +248,8 @@
         <p style="color:red;">{{ error }}</p>
         {% endif %}
     </div>
+</div>
+</div>
 
     <footer>
         <p class="footer-content">

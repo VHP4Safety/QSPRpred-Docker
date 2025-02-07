@@ -5,12 +5,13 @@ import json
 import logging
 import os
 
+import numpy as np
 import pandas as pd
 from flask import Flask, Response, jsonify, render_template, request
 from flask_cors import CORS
 from qsprpred.models import SklearnModel
-from rdkit import Chem
-from rdkit.Chem import Draw
+from rdkit import Chem, DataStructs
+from rdkit.Chem import AllChem, Draw
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
@@ -53,6 +54,27 @@ def validate_smiles(smiles_list):
         if Chem.MolFromSmiles(smile) is None:
             invalid_smiles.append(smile)
     return invalid_smiles
+
+def get_nearest_neighbor(smile, ms):
+    """_summary_
+
+    Args:
+        smile (str): smiles string
+        ms (list): list of rdkit molecules from reference set
+
+    Returns:
+        id for most similar molecule in reference set
+    """
+    fpgen = AllChem.GetMorganGenerator(radius=3)
+    m1 = Chem.MolFromSmiles(smile)
+    query_fp = fpgen.GetSparseCountFingerprint(m1)
+
+    target_fingerprints = [fpgen.GetSparseCountFingerprint(x) for x in ms]
+    scores = DataStructs.BulkTanimotoSimilarity(query_fp, target_fingerprints)
+
+    id_top = np.argmax(np.array(scores))
+    
+    return id_top
     
 def extract_model_info(directory):
     models_info = []
@@ -183,14 +205,22 @@ def predict():
                 model_info_list.append(model_info)
         
         table_data = []
+        
         for i, smile in enumerate(smiles_list): 
             image_data = smiles_to_image(smile)
             row = [image_data] + [smile] + [all_predictions[model][i] for model in model_names]
             table_data.append(row)
-            
+                        
         # Update headers
+        table_data_extensive = []
         headers = ['Structure', 'SMILES']
+        headers_extensive = ['Model', 'Structure', 'SMILES', 'Nearest Neighbor', 'Source', 'Predicted pChEMBL Value']
         for model_name in model_names:
+            accession = model_name.split("_")[0]
+            train_df = pd.read_csv(f'data/{accession}_Data/train_full_model_{accession}.csv').reset_index()
+            train_smiles = train_df['SMILES'].to_list()
+            ms = [Chem.MolFromSmiles(x) for x in train_smiles]
+            row = [] + [all_predictions[model_name][i]]
             model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")               
             model = SklearnModel.fromFile(model_path)
             
@@ -200,12 +230,23 @@ def predict():
             else:
                 # Format classification table header
                 headers.append(f'Predicted class label ({model_name})')
+            
+            for i, smile in enumerate(smiles_list): 
+                image_data = smiles_to_image(smile)
+                id_top = get_nearest_neighbor(smile, ms)
+                nearest_neighbor = train_df.iloc[id_top]['SMILES']
+                doi_nn = train_df.iloc[id_top]['doi']
+                if len(doi_nn) == 0:
+                    doi_nn = train_df.iloc[id_top]['all_doc_ids']
+                image_data_nn = smiles_to_image(nearest_neighbor)
+                row = [model_name] + [image_data] + [smile] + [image_data_nn] + [nearest_neighbor] + [doi_nn] + [all_predictions[model_name][i]]
+                table_data_extensive.append(row)
 
         error_message = None
         if invalid_smiles:
             error_message = f"Invalid SMILES, could not be processed: {', '.join(invalid_smiles)}"  # Mention invalid SMILES in error message
         
-        return render_template('index.html', models=available_models, headers=headers, data=table_data, smiles_input=smiles_input, model_names=model_names, file_name=file_name, error=error_message)
+        return render_template('index.html', models=available_models, headers=headers, data=table_data, headers_extensive=headers_extensive, data_extensive=table_data_extensive, smiles_input=smiles_input, model_names=model_names, file_name=file_name, error=error_message)
     except Exception:
         logging.exception("An error occurred while processing the request.")
         return render_template('index.html', models=available_models, error="An error occurred while processing the request.")
