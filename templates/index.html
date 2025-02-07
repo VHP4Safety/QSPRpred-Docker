@@ -65,7 +65,9 @@
                 columnDefs: [
                     { targets: '_all', visible: true, width: '150px' } // Adjust this width as needed
                 ]
+				
             });
+			
             // Adjust columns after the table is shown or modified
             $('#predictionsTable2').on('shown.bs.collapse', function () {
                 table.columns.adjust();
@@ -234,10 +236,15 @@
                     </td>
                     <td>{{ row[2] }}</td>
                     <td>
-                       <a href="url"> <img src="{{ row[3] }}" alt="Molecule Structure Nearest Neighbor 2"> </a>
-                    </td>
-                    {% for cell in row[5:] %}
-                    <td><a href="url">{{ cell }}</a></td>
+                       <a href="{{ row[5] }}"> <img src="{{ row[3] }}" alt="Molecule Structure Nearest Neighbor 2"> </a>
+					   </td>
+					 <td>
+					 <a href="{{row[5]}}">{{row[5]}}</a>
+					 </td>
+					 
+                    
+                    {% for cell in row[6:] %}
+                    <td><a href="test">{{ cell }}</a></td>
                     {% endfor %}
                 </tr>
                 {% endfor %}
