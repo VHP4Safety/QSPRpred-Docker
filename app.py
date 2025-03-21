@@ -7,7 +7,7 @@ import os
 
 import numpy as np
 import pandas as pd
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request, send_file
 from flask_cors import CORS
 from qsprpred.models import SklearnModel
 from rdkit import Chem, DataStructs
@@ -17,6 +17,8 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from qprf.qprf_utils import render_qprf
 
 app = Flask(__name__)
 CORS(app)  # Allow all origins by default
@@ -55,26 +57,30 @@ def validate_smiles(smiles_list):
             invalid_smiles.append(smile)
     return invalid_smiles
 
-def get_nearest_neighbor(smile, ms):
-    """_summary_
+class SimilaritySearcher():
+    def __init__(self):
+        self.descgen = AllChem.GetMorganGenerator(radius=3)
+        self.scorer = DataStructs.BulkTanimotoSimilarity
+        
+    def get_nearest_neighbors(self, smile, ms):
+        """_summary_
 
-    Args:
-        smile (str): smiles string
-        ms (list): list of rdkit molecules from reference set
+        Args:
+            smile (str): smiles string
+            ms (list): list of rdkit molecules from reference set
 
-    Returns:
-        id for most similar molecule in reference set
-    """
-    fpgen = AllChem.GetMorganGenerator(radius=3)
-    m1 = Chem.MolFromSmiles(smile)
-    query_fp = fpgen.GetSparseCountFingerprint(m1)
+        Returns:
+            id for most similar molecule in reference set
+        """
+        m1 = Chem.MolFromSmiles(smile)
+        query_fp = self.descgen.GetSparseCountFingerprint(m1)
 
-    target_fingerprints = [fpgen.GetSparseCountFingerprint(x) for x in ms]
-    scores = DataStructs.BulkTanimotoSimilarity(query_fp, target_fingerprints)
+        target_fingerprints = [self.descgen.GetSparseCountFingerprint(x) for x in ms]
+        scores = self.scorer(query_fp, target_fingerprints)
 
-    id_top = np.argmax(np.array(scores))
-    
-    return id_top
+        id_top = np.argmax(np.array(scores))
+        
+        return id_top
     
 def extract_model_info(directory):
     models_info = []
@@ -93,11 +99,23 @@ def extract_model_info(directory):
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
                     'radius': state['featureCalculators'][0]['py/state']['radius'],
                     'nBits': state['featureCalculators'][0]['py/state']['nBits'],
-                    'algorithm': state['alg'].split('.')[-1]
+                    'algorithm': state['alg'].split('.')[-1],
+                    'currDir': os.path.join(directory, d),
                 }
                 models_info.append(model_info)
                 logging.info(f"Loaded model metadata: {model_info}")
     return models_info
+
+@app.route('/download')
+def download_qmrf():
+    path = request.args.get('path')
+    return send_file(path + '/qmrf.docx', as_attachment=True)
+
+@app.route('/downloadqprf')
+def download_qprf():
+    model = request.args.get('model')
+    smile = request.args.get('smile')
+    return send_file(f"qprf/output/{model}/{smile}.docx", as_attachment=True)
 
 @app.route('/')
 @app.route('/predict')
@@ -227,6 +245,7 @@ def predict():
         table_data_extensive = []
         headers = ['Structure', 'SMILES']
         headers_extensive = ['Model', 'Structure', 'SMILES', 'Nearest Neighbor', 'Source', 'Predicted pChEMBL Value', 'Within Applicability Domain']
+        searcher = SimilaritySearcher()
         for model_name in model_names:
             accession = model_name.split("_")[0]
             train_df = pd.read_csv(f'data/{accession}_Data/train_full_model_{accession}.csv').reset_index()
@@ -253,20 +272,28 @@ def predict():
             
             for i, smile in enumerate(smiles_list): 
                 image_data = smiles_to_image(smile)
-                id_top = get_nearest_neighbor(smile, ms)
-                nearest_neighbor = train_df.iloc[id_top]['SMILES']
+                id_top = searcher.get_nearest_neighbors(smile, ms)
+                nearest_neighbor = {}
+                nn_smiles = train_df.iloc[id_top]['SMILES']
+                nearest_neighbor["smiles"] = nn_smiles
                 doi_nn = train_df.iloc[id_top]['doi']
                 if doi_nn:
                     doi_nn = 'https://doi.org/' + doi_nn
                 else:
                     doi_nn = train_df.iloc[id_top]['all_doc_ids']
-                image_data_nn = smiles_to_image(nearest_neighbor)
+                nearest_neighbor["reference"] = doi_nn
+                nearest_neighbor["value"] = train_df.iloc[id_top]['pchembl_value']
+                nearest_neighbor["predicted_value"] = model.predictMols([nn_smiles])[0][0]
+                nearest_neighbor["similarity"] = f"Nearest neighbor was found using {searcher.scorer.__name__} based on {searcher.descgen.__class__.__name__}"
+                image_data_nn = smiles_to_image(nn_smiles)
                 if getattr(model, 'applicabilityDomain', None):
-                    row = [model_name] + [image_data] + [smile] + [image_data_nn] + [nearest_neighbor] + [doi_nn] + [all_predictions[model_name][i]] + [all_ads[model_name][i]]
+                    row = [model_name] + [image_data] + [smile] + [image_data_nn] + [nn_smiles] + [doi_nn] + [all_predictions[model_name][i]] + [all_ads[model_name][i]]
                 else:
-                    row = [model_name] + [image_data] + [smile] + [image_data_nn] + [nearest_neighbor] + [doi_nn] + [all_predictions[model_name][i]]
+                    row = [model_name] + [image_data] + [smile] + [image_data_nn] + [nn_smiles] + [doi_nn] + [all_predictions[model_name][i]]
 
                 table_data_extensive.append(row)
+
+                render_qprf(smile, model, predictions[i], ad[i], nearest_neighbor)
 
         error_message = None
         if invalid_smiles:

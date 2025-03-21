@@ -88,6 +88,14 @@
             });
         });
     </script>
+    <script>const btn = document.querySelector("button");
+        btn.addEventListener("click", () => {
+          btn.textContent = "YOU CLICKED ME!! ❤️";
+          setTimeout(() => {
+            btn.textContent = "Press me";
+          }, 1000);
+        });</script>
+    
 </head>
 <body>
     <img src="{{ url_for('static', filename='img/logo.png') }}" alt="VHP4Safety Logo" class="center">
@@ -97,7 +105,6 @@
     <div class="container">
         <form action="/predict" method="post" enctype="multipart/form-data">
             <p>This tool allows users to predict the activity of their chemicals of interest for various molecular initiation events from the VHP4Safety case studies. This prediction is done by target-specific, pretrained QSAR models. Next to the model name the containers below also show some model properties. Compounds should be entered as SMILES strings. The predicted bioactivity is given as predicted pchembl. This translates to a concentration of 10^-pchembl for a half maximal response. For example, an IC50 measurement of 1nM would have a pChEMBL value of 9.</p>
-                
             <ul class="nav nav-tabs">
                 <li class="active"><a data-toggle="tab" href="#thyroid">Thyroid</a></li>
                 <li><a data-toggle="tab" href="#pd">Parkinson's Disease</a></li>
@@ -120,7 +127,7 @@
                                 Radius: {{ model.radius }}<br>
                                 nBits: {{ model.nBits }}<br>
                                 Algorithm: {{ model.algorithm }}<br>
-                                <a href="url">Download QMRF here</a> 
+                                <a href="{{ url_for('download_qmrf', path=model.currDir) }}">Download QMRF here</a>
                             </label>
                         </div>
                         {% endfor %}
@@ -203,7 +210,7 @@
                                         {% endif %}
                 </td>
                                     {% for cell in row[1:] %}
-                <td><a href="url">{{ cell }}</a> </td>
+                <td><a href="{{ url_for('download_qprf', model=headers[loop.index0+1].split(' ')[-1].replace('(','').replace(')','') , smile=row[1]) }}">{{ cell }}</a> </td>
                                     {% endfor %}
                 </tr>
                                 {% endfor %}
@@ -220,7 +227,8 @@
                     <th>Model</th>
                     {% for header in headers_extensive[1:] %}
                     <th title="pChEMBL is a ...">{{ header }}</th>
-                    {% endfor %}
+                    {% endfor %}                
+                    <th>Download QPRF</th>
                 </tr>
             </thead>
             <tbody>
@@ -244,8 +252,11 @@
 					 
                     
                     {% for cell in row[6:] %}
-                    <td><a href="test">{{ cell }}</a></td>
+                    <td>{{ cell }}</td>
                     {% endfor %}
+                    <td>
+                        <a href="{{ url_for('download_qprf', model=row[0], smile=row[2]) }}">Click here to download</a>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

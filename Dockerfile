@@ -22,6 +22,7 @@ RUN pip install -r requirements.txt
 COPY models models
 COPY static static
 COPY data data
+COPY qprf qprf
 COPY templates templates
 COPY app.py entrypoint.sh ./
 
