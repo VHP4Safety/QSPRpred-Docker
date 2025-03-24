@@ -72,10 +72,12 @@ def prediction_info(context, prediction, model):
 
 def ad_info(context, value, model):
     if model.applicabilityDomain.threshold:
-        context["ad"]["assessment"] = f"Input is {'within' if value <= model.applicabilityDomain.threshold else 'not within'} AD."
+        assessment = f"Input is {'within' if value <= model.applicabilityDomain.threshold else 'not within'} AD."
         context["ad"]["value"] = f"Input is has distance of {value}. Inputs with distance {model.applicabilityDomain.direction} {model.applicabilityDomain.threshold} are within AD"
     else:
-        context["ad"]["assessment"] = f"Input is {'within' if value else 'not within'} AD."
+        assessment = f"Input is {'within' if value else 'not within'} AD."
+    context["ad"]["assessment"] = assessment
+    context["reliability"]["descriptor"] = assessment
     return context
 
 def nn_info(context, nearest_neighbor):
