@@ -21,6 +21,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from qprf.qprf_utils import render_qprf
 
 app = Flask(__name__)
+app.jinja_env.filters['zip'] = zip
 CORS(app)  # Allow all origins by default
 
 # Configure logging
@@ -244,7 +245,17 @@ def predict():
         # Update headers
         table_data_extensive = []
         headers = ['Structure', 'SMILES']
+        tooltips = ['2D depiction of input molecule', 'Line representation of input molecule']
         headers_extensive = ['Model', 'Structure', 'SMILES', 'Nearest Neighbor', 'Source', 'Predicted pChEMBL Value', 'Within Applicability Domain']
+        tooltips_extensive = [
+            'Unique identifier of the model that made the prediction', 
+            '2D depiction of input molecule', 
+            'Line representation of input molecule', 
+            '2D depiction of nearest neighbor of input molecule in model training set. More information available in QPRF', 
+            'Document(s) containing experimental data for nearest neighbor',
+            'Model prediction for input molecule. pChEMBL is defined as -log(response). More information available in QMRF & QPRF',
+            'AD is based on descriptors of training set. An input molecule is within AD if the distance to the training set is lower than a set threshold. More information available in QMRF & QPRF',
+            ]
         searcher = SimilaritySearcher()
         for model_name in model_names:
             accession = model_name.split("_")[0]
@@ -257,17 +268,21 @@ def predict():
             if getattr(model, 'applicabilityDomain', None):
                 if model.task.isRegression():
                     # Format regression table header
-                    headers.append(f'Predicted pChEMBL Value (within AD) ({model_name})')
+                    headers.append(f'Predicted pChEMBL Value ({model_name})')
+                    tooltips.append('Model prediction for input molecule. pChEMBL is defined as -log(response). The value in brackets shows if input molecule is within AD')
                 else:
                     # Format classification table header
-                    headers.append(f'Predicted class label (within AD) ({model_name})')
+                    headers.append(f'Predicted class label ({model_name})')
+                    tooltips.append('Model prediction for input molecule. The value in brackets shows if input molecule is within AD')
             else:
                 if model.task.isRegression():
                     # Format regression table header
                     headers.append(f'Predicted pChEMBL Value ({model_name})')
+                    tooltips.append('Model prediction for input molecule. pChEMBL is defined as -log(response)')
                 else:
                     # Format classification table header
                     headers.append(f'Predicted class label ({model_name})')
+                    tooltips.append('Model prediction for input molecule')
 
             
             for i, smile in enumerate(smiles_list): 
@@ -299,7 +314,7 @@ def predict():
         if invalid_smiles:
             error_message = f"Invalid SMILES, could not be processed: {', '.join(invalid_smiles)}"  # Mention invalid SMILES in error message
         
-        return render_template('index.html', models=available_models, headers=headers, data=table_data, headers_extensive=headers_extensive, data_extensive=table_data_extensive, smiles_input=smiles_input, model_names=model_names, file_name=file_name, error=error_message)
+        return render_template('index.html', models=available_models, headers=headers, tooltips=tooltips, data=table_data, headers_extensive=headers_extensive, tooltips_extensive = tooltips_extensive, data_extensive=table_data_extensive, smiles_input=smiles_input, model_names=model_names, file_name=file_name, error=error_message)
     except Exception:
         logging.exception("An error occurred while processing the request.")
         return render_template('index.html', models=available_models, error="An error occurred while processing the request.")

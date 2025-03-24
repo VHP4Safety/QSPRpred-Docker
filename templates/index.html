@@ -88,13 +88,6 @@
             });
         });
     </script>
-    <script>const btn = document.querySelector("button");
-        btn.addEventListener("click", () => {
-          btn.textContent = "YOU CLICKED ME!! ❤️";
-          setTimeout(() => {
-            btn.textContent = "Press me";
-          }, 1000);
-        });</script>
     
 </head>
 <body>
@@ -113,7 +106,7 @@
  
             <div class="tab-content">
                 <div id="thyroid" class="tab-pane fade in active">
-                    <label>MIE models:</label><br>
+                    <label>MIE models:</label><sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title="QSAR models for different endpoints. Download QMRF for model specific information"> </sup>
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
                         {% for model in models if model.case_study == 'thyroid' %}
                         <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
@@ -164,7 +157,7 @@
             <label for="smiles">Enter SMILES strings (comma-separated):</label><br>
             <input type="text" id="smiles" name="smiles" value="{{ smiles_input }}" placeholder="Example: Cc1c(Cc2cc(I)c(OCC(=O)O)c(I)c2)c2c(cccc2)o1,O=c1cnn(-c2cc(Cl)c(Oc3ccc(O)c(S(=O)(=O)N4CCc5ccccc54)c3)c(Cl)c2)c(=O)[nH]1"><br><br>
 
-            <label for="file">or Upload CSV file with SMILES (with a column named <q>SMILES</q>):</label><br>
+            <label for="file">or Upload CSV file with SMILES (with a column named <q>SMILES</q>):</label><sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title="Case sensitive"> </sup><br>
             <input type="file" id="file" name="file" accept=".csv"><br><br>
             
             <input type="submit" value="Run">
@@ -193,9 +186,9 @@
             <table id="predictionsTable" class="display">
                 <thead>
                 <tr>
-                <th>Structure</th>
+                <th>Structure <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title="2D depiction of input molecule"> </sup></th>
                                     {% for header in headers[1:] %}
-                <th>{{ header }}</th>
+                <th>{{ header }} <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title= "{{ tooltips[loop.index0+1] }}" > </sup></th>
                                     {% endfor %}
                 </tr>
                 </thead>
@@ -224,9 +217,8 @@
         <table id="predictionsTable2" class="display">
             <thead>
                 <tr>
-                    <th>Model</th>
-                    {% for header in headers_extensive[1:] %}
-                    <th title="pChEMBL is a ...">{{ header }}</th>
+                    {% for header in headers_extensive %}
+                    <th> {{ header }} <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title= "{{ tooltips_extensive[loop.index0] }}" > </sup></th>
                     {% endfor %}                
                     <th>Download QPRF</th>
                 </tr>
