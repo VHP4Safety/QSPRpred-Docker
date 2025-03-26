@@ -143,7 +143,7 @@
                                 Radius: {{ model.radius }}<br>
                                 nBits: {{ model.nBits }}<br>
                                 Algorithm: {{ model.algorithm }}<br>
-								<a href="url">Download QMRF here</a> 
+								<a href="{{ url_for('download_qmrf', path=model.currDir, target=model.name) }}">Download QMRF here</a>
                             </label>
                         </div>
                         {% endfor %}
