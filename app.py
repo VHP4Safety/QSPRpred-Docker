@@ -110,7 +110,8 @@ def extract_model_info(directory):
 @app.route('/download')
 def download_qmrf():
     path = request.args.get('path')
-    return send_file(path + '/qmrf.docx', as_attachment=True)
+    target = request.args.get('target')
+    return send_file(path + f'/qmrf_{target}.docx', as_attachment=True)
 
 @app.route('/downloadqprf')
 def download_qprf():
@@ -291,13 +292,9 @@ def predict():
                 nearest_neighbor = {}
                 nn_smiles = train_df.iloc[id_top]['SMILES']
                 nearest_neighbor["smiles"] = nn_smiles
-                doi_nn = train_df.iloc[id_top]['doi']
-                if doi_nn:
-                    doi_nn = 'https://doi.org/' + doi_nn
-                else:
-                    doi_nn = train_df.iloc[id_top]['all_doc_ids']
+                doi_nn = train_df.iloc[id_top]['all_doc_ids']
                 nearest_neighbor["reference"] = doi_nn
-                nearest_neighbor["value"] = train_df.iloc[id_top]['pchembl_value']
+                nearest_neighbor["value"] = train_df.iloc[id_top]['pchembl_value_Mean']
                 nearest_neighbor["predicted_value"] = model.predictMols([nn_smiles])[0][0]
                 nearest_neighbor["similarity"] = f"Nearest neighbor was found using {searcher.scorer.__name__} based on {searcher.descgen.__class__.__name__}"
                 image_data_nn = smiles_to_image(nn_smiles)
