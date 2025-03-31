@@ -5,19 +5,23 @@ import json
 import logging
 import os
 
+import numpy as np
 import pandas as pd
-from flask import Flask, Response, jsonify, render_template, request
+from flask import Flask, Response, jsonify, render_template, request, send_file
+from flask_cors import CORS
 from qsprpred.models import SklearnModel
-from rdkit import Chem
-from rdkit.Chem import Draw
+from rdkit import Chem, DataStructs
+from rdkit.Chem import AllChem, Draw
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-from flask_cors import CORS
+
+from qprf.qprf_utils import render_qprf
 
 app = Flask(__name__)
+app.jinja_env.filters['zip'] = zip
 CORS(app)  # Allow all origins by default
 
 # Configure logging
@@ -53,6 +57,31 @@ def validate_smiles(smiles_list):
         if Chem.MolFromSmiles(smile) is None:
             invalid_smiles.append(smile)
     return invalid_smiles
+
+class SimilaritySearcher():
+    def __init__(self):
+        self.descgen = AllChem.GetMorganGenerator(radius=3)
+        self.scorer = DataStructs.BulkTanimotoSimilarity
+        
+    def get_nearest_neighbors(self, smile, ms):
+        """_summary_
+
+        Args:
+            smile (str): smiles string
+            ms (list): list of rdkit molecules from reference set
+
+        Returns:
+            id for most similar molecule in reference set
+        """
+        m1 = Chem.MolFromSmiles(smile)
+        query_fp = self.descgen.GetSparseCountFingerprint(m1)
+
+        target_fingerprints = [self.descgen.GetSparseCountFingerprint(x) for x in ms]
+        scores = self.scorer(query_fp, target_fingerprints)
+
+        id_top = np.argmax(np.array(scores))
+        
+        return id_top
     
 def extract_model_info(directory):
     models_info = []
@@ -71,13 +100,27 @@ def extract_model_info(directory):
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
                     'radius': state['featureCalculators'][0]['py/state']['radius'],
                     'nBits': state['featureCalculators'][0]['py/state']['nBits'],
-                    'algorithm': state['alg'].split('.')[-1]
+                    'algorithm': state['alg'].split('.')[-1],
+                    'currDir': os.path.join(directory, d),
                 }
                 models_info.append(model_info)
                 logging.info(f"Loaded model metadata: {model_info}")
     return models_info
 
+@app.route('/download')
+def download_qmrf():
+    path = request.args.get('path')
+    target = request.args.get('target')
+    return send_file(path + f'/qmrf_{target}.docx', as_attachment=True)
+
+@app.route('/downloadqprf')
+def download_qprf():
+    model = request.args.get('model')
+    smile = request.args.get('smile')
+    return send_file(f"qprf/output/{model}/{smile}.docx", as_attachment=True)
+
 @app.route('/')
+@app.route('/predict')
 def home():
     available_models = extract_model_info(MODELS_DIR)
     return render_template('index.html', models=available_models)
@@ -148,12 +191,18 @@ def predict():
             return render_template('index.html', models=available_models, error=error_message)
         
         all_predictions = {}
+        all_ads = {}
         model_info_list = []
         for model_name in model_names:
             logging.debug(f"Processing model: {model_name}")
             model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")
             model = SklearnModel.fromFile(model_path)
-            predictions = model.predictMols(smiles_list)
+            ad = []
+            if getattr(model, 'applicabilityDomain', None):
+                predictions, ad = model.predictMols(smiles_list, use_applicability_domain=True)
+                ad = list(ad)
+            else:
+                predictions = model.predictMols(smiles_list)
             
             # Check if the model is regression or classification
             if model.task.isRegression():
@@ -161,8 +210,10 @@ def predict():
             else:
                 # Format classification output as Active/Inactive
                 formatted_predictions = ["Active" if pred[0] == 1 else "Inactive" for pred in predictions]
-            
+
             all_predictions[model_name] = formatted_predictions
+            all_ads[model_name] = ad
+
             
             # Extract model info for report
             with open(model_path, 'r') as meta_file:
@@ -182,29 +233,85 @@ def predict():
                 model_info_list.append(model_info)
         
         table_data = []
+        
         for i, smile in enumerate(smiles_list): 
             image_data = smiles_to_image(smile)
-            row = [image_data] + [smile] + [all_predictions[model][i] for model in model_names]
+            if getattr(model, 'applicabilityDomain', None):
+                row = [image_data] + [smile] + [all_predictions[model][i] + f' ({str(all_ads[model][i])})' for model in model_names]
+            else:
+                row = [image_data] + [smile] + [all_predictions[model][i] for model in model_names]
+
             table_data.append(row)
-            
+                        
         # Update headers
+        table_data_extensive = []
         headers = ['Structure', 'SMILES']
+        tooltips = ['2D depiction of input molecule', 'Line representation of input molecule']
+        headers_extensive = ['Model', 'Structure', 'SMILES', 'Nearest Neighbor', 'Source', 'Predicted pChEMBL Value', 'Within Applicability Domain']
+        tooltips_extensive = [
+            'Unique identifier of the model that made the prediction', 
+            '2D depiction of input molecule', 
+            'Line representation of input molecule', 
+            '2D depiction of nearest neighbor of input molecule in model training set. More information available in QPRF', 
+            'Document(s) containing experimental data for nearest neighbor',
+            'Model prediction for input molecule. pChEMBL is defined as -log(response). More information available in QMRF & QPRF',
+            'AD is based on descriptors of training set. An input molecule is within AD if the distance to the training set is lower than a set threshold. More information available in QMRF & QPRF',
+            ]
+        searcher = SimilaritySearcher()
         for model_name in model_names:
+            accession = model_name.split("_")[0]
+            train_df = pd.read_csv(f'data/{accession}_Data/train_full_model_{accession}.csv').reset_index()
+            train_smiles = train_df['SMILES'].to_list()
+            ms = [Chem.MolFromSmiles(x) for x in train_smiles]
             model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")               
             model = SklearnModel.fromFile(model_path)
             
-            if model.task.isRegression():
-                # Format regression table header
-                headers.append(f'Predicted pChEMBL Value ({model_name})')
+            if getattr(model, 'applicabilityDomain', None):
+                if model.task.isRegression():
+                    # Format regression table header
+                    headers.append(f'Predicted pChEMBL Value ({model_name})')
+                    tooltips.append('Model prediction for input molecule. pChEMBL is defined as -log(response). The value in brackets shows if input molecule is within AD')
+                else:
+                    # Format classification table header
+                    headers.append(f'Predicted class label ({model_name})')
+                    tooltips.append('Model prediction for input molecule. The value in brackets shows if input molecule is within AD')
             else:
-                # Format classification table header
-                headers.append(f'Predicted class label ({model_name})')
+                if model.task.isRegression():
+                    # Format regression table header
+                    headers.append(f'Predicted pChEMBL Value ({model_name})')
+                    tooltips.append('Model prediction for input molecule. pChEMBL is defined as -log(response)')
+                else:
+                    # Format classification table header
+                    headers.append(f'Predicted class label ({model_name})')
+                    tooltips.append('Model prediction for input molecule')
+
+            
+            for i, smile in enumerate(smiles_list): 
+                image_data = smiles_to_image(smile)
+                id_top = searcher.get_nearest_neighbors(smile, ms)
+                nearest_neighbor = {}
+                nn_smiles = train_df.iloc[id_top]['SMILES']
+                nearest_neighbor["smiles"] = nn_smiles
+                doi_nn = train_df.iloc[id_top]['all_doc_ids']
+                nearest_neighbor["reference"] = doi_nn
+                nearest_neighbor["value"] = train_df.iloc[id_top]['pchembl_value_Mean']
+                nearest_neighbor["predicted_value"] = model.predictMols([nn_smiles])[0][0]
+                nearest_neighbor["similarity"] = f"Nearest neighbor was found using {searcher.scorer.__name__} based on {searcher.descgen.__class__.__name__}"
+                image_data_nn = smiles_to_image(nn_smiles)
+                if getattr(model, 'applicabilityDomain', None):
+                    row = [model_name] + [image_data] + [smile] + [image_data_nn] + [nn_smiles] + [doi_nn] + [all_predictions[model_name][i]] + [all_ads[model_name][i]]
+                else:
+                    row = [model_name] + [image_data] + [smile] + [image_data_nn] + [nn_smiles] + [doi_nn] + [all_predictions[model_name][i]]
+
+                table_data_extensive.append(row)
+
+                render_qprf(smile, model, predictions[i], ad[i], nearest_neighbor)
 
         error_message = None
         if invalid_smiles:
             error_message = f"Invalid SMILES, could not be processed: {', '.join(invalid_smiles)}"  # Mention invalid SMILES in error message
         
-        return render_template('index.html', models=available_models, headers=headers, data=table_data, smiles_input=smiles_input, model_names=model_names, file_name=file_name, error=error_message)
+        return render_template('index.html', models=available_models, headers=headers, tooltips=tooltips, data=table_data, headers_extensive=headers_extensive, tooltips_extensive = tooltips_extensive, data_extensive=table_data_extensive, smiles_input=smiles_input, model_names=model_names, file_name=file_name, error=error_message)
     except Exception:
         logging.exception("An error occurred while processing the request.")
         return render_template('index.html', models=available_models, error="An error occurred while processing the request.")
