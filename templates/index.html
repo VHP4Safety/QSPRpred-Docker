@@ -18,12 +18,12 @@
     <script src="https://cdn.datatables.net/buttons/1.7.1/js/buttons.print.min.js"></script>
     <style>
         img {
-            max-width: 150px;
-            max-height: 150px;
+            max-width: 140px;
+            max-height: 140px;
             object-fit: contain;
         }
         table.dataTable td, table.dataTable th {
-            text-align: center;
+            text-align: left;
         }
     </style>
     <script>
@@ -37,7 +37,7 @@
                     'print'
                 ],
                 scrollX: true,
-                autoWidth: false, // Prevent automatic column width adjustment
+                autoWidth: true, // Prevent automatic column width adjustment
                 columnDefs: [
                     { targets: [1], visible: false},
                     { targets: '_all', visible: true, width: '150px' } // Adjust this width as needed
@@ -171,7 +171,7 @@
     <header>
         <h2>Predictions</h2>
     </header>
-    <div class="container">
+    <div class="prediction-container">
         <ul class="nav nav-tabs">
         <li class="active">
         <a data-toggle="tab" href="#Output">Simple Output</a>
@@ -215,45 +215,61 @@
 
 
             <div id="COutput" class="tab-pane fade">
-        <table id="predictionsTable2" class="display">
-            <thead>
-                <tr>
-                    {% for header in headers_extensive %}
-                    <th> {{ header }} <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title= "{{ tooltips_extensive[loop.index0] }}" > </sup></th>
-                    {% endfor %}                
-                    <th>Download QPRF</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in data_extensive %}
-                <tr>
-                    <td>{{ row[0] }}</td>
-                    <td>
-                        {% if row[1] %}
-                        <img src="{{ row[1] }}" alt="Molecule Structure">
+            <table id="predictionsTable2" class="display">
+                <thead>
+                    <tr>
+                        {% for key in data_dict.keys() %}
+                        {% if 'value' in data_dict[key].keys() %}
+                        <th rowspan="2" width="15%">{{ key }}</th> 
+                        {% elif key == 'Nearest Neighbor' %}
+                        <th colspan="{{ data_dict[key].keys()|length }}" scope="colgroup">{{ key }} <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title= "{{ tooltips_extensive[key] }}" > </sup></th>
+
                         {% else %}
-                        <p>Invalid SMILES</p>
+
+                        <th colspan="{{ data_dict[key].keys()|length }}" scope="colgroup">{{ key }}</th>
                         {% endif %}
-                    </td>
-                    <td>{{ row[2] }}</td>
-                    <td>
-                       <a href="{{ row[5] }}"> <img src="{{ row[3] }}" alt="Molecule Structure Nearest Neighbor 2"> </a>
-					   </td>
-					 <td>
-					 <a href="{{row[5]}}" target="_blank">{{row[5]}}</a>
-					 </td>
-					 
-                    
-                    {% for cell in row[6:] %}
-                    <td>{{ cell }}</td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        {% for key in data_dict.keys() %}
+                        {% if 'value' not in data_dict[key].keys() %}
+                        {% for header in data_dict[key].keys() %}
+                        <th> {{ header }} <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title= "{{ tooltips_extensive[header] }}" > </sup></th>
+                        {% endfor %}  
+                        {% endif %}
+                        {% endfor %}                
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for i in range(data_dict["Model"]["value"]|length) %}
+                    <tr>
+                        {% for key in data_dict.keys() %}
+                        {% if 'value' in data_dict[key].keys() %}
+                            <td>{{ data_dict[key]['value'][i] }}</td>
+                        {% else %}
+                            {% for header in data_dict[key].keys() %}
+                            {% if 'image' in data_dict[key][header].keys() %}
+                                <td>
+                                    {% if data_dict[key][header]['image'][i] %}
+                                    <img src="{{ data_dict[key][header]['image'][i] }}" alt="Molecule Structure">
+                                    {% else %}
+                                    <p>Invalid SMILES</p>
+                                    {% endif %}
+                                </td>
+                            {% elif 'url' in data_dict[key][header].keys() %}
+                                <td><a href="{{ url_for('download_qprf', model=data_dict['Model']['value'][i] , smile=data_dict['Input']['SMILES']['value'][i]) }}">Click here to download</a> </td>
+
+                            {% else %}
+                            <td>{{ data_dict[key][header]['value'][i] }}</td>
+                            {% endif %}
+                            {% endfor %}  
+                        {% endif %}
+                        {% endfor %} 
+                    </tr>
                     {% endfor %}
-                    <td>
-                        <a href="{{ url_for('download_qprf', model=row[0], smile=row[2]) }}">Click here to download</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                    </tbody>
+            </table>
+            </div>
         {% endif %}
     
         {% if error %}
