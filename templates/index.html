@@ -36,7 +36,9 @@
                     'pdfHtml5',
                     'print'
                 ],
-                scrollX: true,
+                "initComplete": function (settings, json) {  
+                    $("#predictionsTable").wrap("<div style='overflow:auto; width:100%;position:relative;'></div>"); 
+                },
                 autoWidth: true, // Prevent automatic column width adjustment
                 columnDefs: [
                     { targets: [1], visible: false},
@@ -60,10 +62,12 @@
                     'pdfHtml5',
                     'print'
                 ],
-                scrollX: true,
+                "initComplete": function (settings, json) {  
+                    $("#predictionsTable2").wrap("<div style='overflow:auto; width:100%;position:relative;'></div>"); 
+                },
                 autoWidth: false, // Prevent automatic column width adjustment
                 columnDefs: [
-                    { targets: '_all', visible: true, width: '150px' } // Adjust this width as needed
+                    { targets: '_all', visible: true } // Adjust this width as needed
                 ]
 				
             });
@@ -107,7 +111,7 @@
  
             <div class="tab-content">
                 <div id="thyroid" class="tab-pane fade in active">
-                    <label>MIE models:</label><sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title="QSAR models for different endpoints. Download QMRF for model specific information"> </sup>
+                    <label>MIE models:</label><sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" title="QSAR models for different endpoints. Download QMRF for model specific information"> </sup>
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
                         {% for model in models if model.case_study == 'thyroid' %}
                         <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
@@ -158,7 +162,7 @@
             <label for="smiles">Enter SMILES strings (comma-separated):</label><br>
             <input type="text" id="smiles" name="smiles" value="{{ smiles_input }}" placeholder="Example: Cc1c(Cc2cc(I)c(OCC(=O)O)c(I)c2)c2c(cccc2)o1,O=c1cnn(-c2cc(Cl)c(Oc3ccc(O)c(S(=O)(=O)N4CCc5ccccc54)c3)c(Cl)c2)c(=O)[nH]1"><br><br>
 
-            <label for="file">or Upload CSV file with SMILES (with a column named <q>SMILES</q>):</label><sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title="Case sensitive"> </sup><br>
+            <label for="file">or Upload CSV file with SMILES (with a column named <q>SMILES</q>):</label><sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" title="Case sensitive"> </sup><br>
             <input type="file" id="file" name="file" accept=".csv"><br><br>
             
             <input type="submit" value="Run">
@@ -187,9 +191,9 @@
             <table id="predictionsTable" class="display">
                 <thead>
                 <tr>
-                <th>Structure <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title="2D depiction of input molecule"> </sup></th>
+                <th>Structure <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" title="2D depiction of input molecule"> </sup></th>
                                     {% for header in headers[1:] %}
-                <th>{{ header }} <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title= "{{ tooltips[loop.index0+1] }}" > </sup></th>
+                <th>{{ header }} <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" title= "{{ tooltips[loop.index0+1] }}" > </sup></th>
                                     {% endfor %}
                 </tr>
                 </thead>
@@ -222,7 +226,7 @@
                         {% if 'value' in data_dict[key].keys() %}
                         <th rowspan="2" width="15%">{{ key }}</th> 
                         {% elif key == 'Nearest Neighbor' %}
-                        <th colspan="{{ data_dict[key].keys()|length }}" scope="colgroup">{{ key }} <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title= "{{ tooltips_extensive[key] }}" > </sup></th>
+                        <th colspan="{{ data_dict[key].keys()|length }}" scope="colgroup">{{ key }} <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" title= "{{ tooltips_extensive[key] }}" > </sup></th>
 
                         {% else %}
 
@@ -234,7 +238,7 @@
                         {% for key in data_dict.keys() %}
                         {% if 'value' not in data_dict[key].keys() %}
                         {% for header in data_dict[key].keys() %}
-                        <th> {{ header }} <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" fill="currentColor" title= "{{ tooltips_extensive[header] }}" > </sup></th>
+                        <th> {{ header }} <sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" title= "{{ tooltips_extensive[header] }}" > </sup></th>
                         {% endfor %}  
                         {% endif %}
                         {% endfor %}                
