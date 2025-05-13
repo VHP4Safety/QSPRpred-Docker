@@ -195,12 +195,13 @@ def predict():
         model_info_list = []
         data_dict = {
             "Model": {},
-            "Input": {'SMILES': {}, 'Structure': {}},
-            "Nearest Neighbor": {'Structure': {}, 'Similarity': {}, 'Source': {}, 'Experimental value': {}},
+            "Input": {'SMILES': {}, 'Input structure': {}},
+            "Nearest Neighbor": {'NN structure': {}, 'Similarity': {}, 'Source': {}, 'Experimental value': {}},
             "Output": {'Predicted pChEMBL Value': {}, 'Within Applicability Domain': {}, 'Download QPRF': {}}
         }
         tooltip_dict = {"Model": 'Unique identifier of the model that made the prediction',
-                        "Structure": '2D depiction of molecule',
+                        "Input structure": '2D depiction of molecule',
+                        "NN structure": '2D depiction of molecule',
                         "SMILES": 'Line representation of molecule',
                         "Nearest Neighbor": 'Molecule from the model training set that is the most similar to input molecule',
                         "Similarity": 'Tanimoto similarity score based on same chemical descriptor as used for model',
@@ -300,8 +301,18 @@ def predict():
                 nearest_neighbor = {}
                 nn_smiles = train_df.iloc[id_top]['SMILES']
                 nearest_neighbor["smiles"] = nn_smiles
-                doi_nn = train_df.iloc[id_top]['all_doc_ids']
-                nearest_neighbor["reference"] = doi_nn
+                doc_ids = train_df.iloc[id_top]['all_doc_ids']
+                doc_ids = doc_ids.split(';')
+                doc_links = []
+                for doc_id in doc_ids:
+                    if doc_id.startswith('PMID:'):
+                        doc_links.append(f'https://pubmed.ncbi.nlm.nih.gov/{doc_id.lstrip("PMID:")}/')
+                    elif doc_id.startswith('DOI:'):
+                        doc_links.append('https://doi.org/' + doc_id)
+                    elif doc_id.startswith('PubChemAID:'):
+                        doc_links.append(f'https://pubchem.ncbi.nlm.nih.gov/bioassay/{doc_id.lstrip("PubChemAID:")}/')
+                
+                nearest_neighbor["reference"] = doc_ids
                 nearest_neighbor["value"] = train_df.iloc[id_top]['pchembl_value_Mean']
                 nearest_neighbor["predicted_value"] = model.predictMols([nn_smiles])[0][0]
                 nearest_neighbor["similarity"] = f"Nearest neighbor was found using {searcher.scorer.__name__} based on {searcher.descgen.__class__.__name__}"
@@ -309,12 +320,13 @@ def predict():
 
                 render_qprf(smile, model, predictions[i], ad[i], nearest_neighbor)
                 data_dict["Model"].setdefault("value", []).append(model_name)
-                data_dict["Input"]["Structure"].setdefault("image", []).append(image_data)
+                data_dict["Input"]["Input structure"].setdefault("image", []).append(image_data)
                 data_dict["Input"]["SMILES"].setdefault("value", []).append(smile)
-                data_dict["Nearest Neighbor"]["Structure"].setdefault("image", []).append(image_data_nn)
+                data_dict["Nearest Neighbor"]["NN structure"].setdefault("image", []).append(image_data_nn)
                 data_dict["Nearest Neighbor"]["Similarity"].setdefault("value", []).append(f"{score:.2f}")
-                data_dict["Nearest Neighbor"]["Source"].setdefault("value", []).append(doi_nn)
-                data_dict["Nearest Neighbor"]["Experimental value"].setdefault("value", []).append(nearest_neighbor["value"])
+                data_dict["Nearest Neighbor"]["Source"].setdefault("value", []).append(doc_ids)
+                data_dict["Nearest Neighbor"]["Source"].setdefault("links", []).append(doc_links)
+                data_dict["Nearest Neighbor"]["Experimental value"].setdefault("value", []).append(f"{nearest_neighbor['value']:.2f}")
                 data_dict["Output"]["Predicted pChEMBL Value"].setdefault("value", []).append(all_predictions[model_name][i])
                 data_dict["Output"]["Within Applicability Domain"].setdefault("value", []).append(all_ads[model_name][i])
                 data_dict["Output"]["Download QPRF"].setdefault("url", []).append("hi")

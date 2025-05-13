@@ -219,7 +219,7 @@
 
 
             <div id="COutput" class="tab-pane fade">
-            <table id="predictionsTable2" class="display">
+            <table id="predictionsTable2" class="cell-border">
                 <thead>
                     <tr>
                         {% for key in data_dict.keys() %}
@@ -262,7 +262,12 @@
                                 </td>
                             {% elif 'url' in data_dict[key][header].keys() %}
                                 <td><a href="{{ url_for('download_qprf', model=data_dict['Model']['value'][i] , smile=data_dict['Input']['SMILES']['value'][i]) }}">Click here to download</a> </td>
-
+                            {% elif 'links' in data_dict[key][header].keys() %}
+                                <td>
+                                {% for j in range(data_dict[key][header]['links'][i] |length) %}
+                                    <a href="{{ data_dict[key][header]['links'][i][j] }}" target="_blank">{{ data_dict[key][header]['value'][i][j] }}</a>
+                                {% endfor %} 
+                                </td>
                             {% else %}
                             <td>{{ data_dict[key][header]['value'][i] }}</td>
                             {% endif %}
