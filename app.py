@@ -82,7 +82,7 @@ class SimilaritySearcher():
         id_top = np.argmax(np.array(scores))
         
         return id_top, max(scores)
-    
+
 def extract_model_info(directory):
     models_info = []
     for d in os.listdir(directory):
@@ -118,6 +118,45 @@ def download_qprf():
     model = request.args.get('model')
     smile = request.args.get('smile')
     return send_file(f"qprf/output/{model}/{smile}.docx", as_attachment=True)
+
+@app.route('/get_models', methods=['GET'])
+def get_models():
+    """
+    Returns metadata for all models in the format:
+    {
+        "model_name": {model metadata content},
+        ...
+    }
+    """
+    models_metadata = {}
+
+    try:
+        for model_dir in os.listdir(MODELS_DIR):
+            model_path = os.path.join(MODELS_DIR, model_dir, f"{model_dir}_meta.json")
+
+            if os.path.exists(model_path):
+                with open(model_path, 'r') as meta_file:
+                    meta_data = json.load(meta_file)
+                    # Use py/state.name as the key and include the full meta content
+                    model_name = meta_data['py/state']['name']
+                    models_metadata[model_name] = {
+                        "meta": (
+                            "https://raw.githubusercontent.com/VHP4Safety/QSPRpred-Docker/" # TODO expose models in a persistent url?
+                            "refs/heads/main/models/"
+                            f"{model_name}/{model_dir}_meta.json"
+                        ),
+                        "model": (
+                            "https://raw.githubusercontent.com/VHP4Safety/QSPRpred-Docker/"
+                            "refs/heads/main/models/"
+                            f"{model_name}/{model_dir}.json"
+                        )
+                    }
+
+    except Exception as e:
+        logging.error(f"Error loading model metadata: {e}")
+        return jsonify({'error': 'Failed to load model metadata'}), 500
+
+    return jsonify(models_metadata)
 
 @app.route('/')
 @app.route('/predict')
