@@ -16,6 +16,7 @@ WORKDIR /usr/src/app
 
 # Install any needed packages specified in requirements.txt
 COPY requirements.txt requirements.txt
+COPY spock spock
 RUN pip install -r requirements.txt
 
 # Copy the current directory contents into the container at /usr/src/app
@@ -24,7 +25,7 @@ COPY static static
 COPY data data
 COPY qprf qprf
 COPY templates templates
-COPY app.py entrypoint.sh ./
+COPY app.py ifp.py entrypoint.sh ./
 
 RUN chmod +x /usr/src/app/entrypoint.sh
 

@@ -18,6 +18,9 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
+logger = logging.getLogger(__name__)
+
+import ifp
 from qprf.qprf_utils import render_qprf
 
 app = Flask(__name__)
@@ -62,7 +65,7 @@ class SimilaritySearcher():
     def __init__(self):
         self.descgen = AllChem.GetMorganGenerator(radius=3)
         self.scorer = DataStructs.BulkTanimotoSimilarity
-        
+
     def get_nearest_neighbors(self, smile, ms):
         """_summary_
 
@@ -80,9 +83,9 @@ class SimilaritySearcher():
         scores = self.scorer(query_fp, target_fingerprints)
 
         id_top = np.argmax(np.array(scores))
-        
+
         return id_top, max(scores)
-    
+
 def extract_model_info(directory):
     models_info = []
     for d in os.listdir(directory):
@@ -98,8 +101,6 @@ def extract_model_info(directory):
                     'target_property_name': state['targetProperties'][0]['py/state']['name'],
                     'target_property_task': state['targetProperties'][0]['py/state']['task']['py/reduce'][1]['py/tuple'][0],
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
-                    'radius': state['featureCalculators'][0]['py/state']['radius'],
-                    'nBits': state['featureCalculators'][0]['py/state']['nBits'],
                     'algorithm': state['alg'].split('.')[-1],
                     'currDir': os.path.join(directory, d),
                 }
@@ -119,6 +120,33 @@ def download_qprf():
     smile = request.args.get('smile')
     return send_file(f"qprf/output/{model}/{smile}.docx", as_attachment=True)
 
+@app.route('/downloadposes')
+def download_poses():
+    smile = request.args.get('smile')
+    protein_id = request.args.get('protein_id')
+    return send_file(f"{smile}_{protein_id}.sdf", as_attachment=True)
+
+# def zipdir(path, ziph):
+#     # ziph is zipfile handle
+#     for root, dirs, files in os.walk(path):
+#         for file in files:
+#             ziph.write(os.path.join(root, file),
+#                        os.path.relpath(os.path.join(root, file),
+#                                        os.path.join(path, '..')))
+
+
+
+# @app.route('/downloadposes')
+# def download_poses():
+#     logging.basicConfig(filename='myapp.log', level=logging.INFO)
+#     logger.info('Started')
+#     store_names = request.args.get('store_names')
+#     logger.info(store_names)
+#     for store_name in store_names:
+#         with zipfile.ZipFile('Python.zip', 'w', zipfile.ZIP_DEFLATED) as zipf:
+#             zipdir(f'{store_name}/', zipf)
+#     return send_file('Python.zip', as_attachment=True)
+
 @app.route('/')
 @app.route('/predict')
 def home():
@@ -134,23 +162,23 @@ def predict():
         uploaded_file = request.files.get('file')
         model_names = request.form.getlist('model')
         file_name = request.form.get('uploaded_file_name')
-        
+
         logging.debug(f"Received SMILES input: {smiles_input}")
         logging.debug(f"Uploaded file: {uploaded_file}")
         logging.debug(f"Selected models: {model_names}")
         logging.debug(f"Previous uploaded file name: {file_name}")
-        
+
         if not model_names:
             logging.error("No model selected.")
             return render_template('index.html', models=available_models, error="No model selected.")
-        
+
         smiles_list = []
         invalid_smiles = []
 
         # Handle SMILES string input
         if smiles_input:
             input_smiles = [smile.strip() for smile in smiles_input.split(',')]
-            
+
             # Check if only one SMILES string is entered
             if len(input_smiles) == 1:
                 if Chem.MolFromSmiles(input_smiles[0]) is None:  # Check for invalid single SMILES
@@ -161,7 +189,7 @@ def predict():
             else:
                 invalid_smiles.extend([smile for smile in input_smiles if Chem.MolFromSmiles(smile) is None])  # Collect invalid SMILES
                 smiles_list.extend([smile for smile in input_smiles if Chem.MolFromSmiles(smile) is not None])  # Collect valid SMILES
-        
+
         # Handle uploaded file
         if uploaded_file and uploaded_file.filename != '':
             file_name = uploaded_file.filename
@@ -181,15 +209,16 @@ def predict():
                     file_smiles = uploaded_df['SMILES'].tolist()
                     invalid_smiles.extend([smile for smile in file_smiles if Chem.MolFromSmiles(smile) is None])  # Collect invalid SMILES from previous file
                     smiles_list.extend([smile for smile in file_smiles if Chem.MolFromSmiles(smile) is not None])  # Collect valid SMILES from previous file
-        
+
         logging.debug(f"Final SMILES list: {smiles_list}")
         logging.debug(f"Invalid SMILES detected: {invalid_smiles}")  # Log invalid SMILES
-        
+
         if not smiles_list and not invalid_smiles:
             error_message = "No SMILES strings provided"
             logging.error(error_message)
             return render_template('index.html', models=available_models, error=error_message)
-        
+
+        store_names = []
         all_predictions = {}
         all_ads = {}
         model_info_list = []
@@ -197,7 +226,7 @@ def predict():
             "Model": {},
             "Input": {'SMILES': {}, 'Input structure': {}},
             "Nearest Neighbor": {'NN structure': {}, 'Similarity': {}, 'Source': {}, 'Experimental value': {}},
-            "Output": {'Predicted pChEMBL Value': {}, 'Within Applicability Domain': {}, 'Download QPRF': {}}
+            "Output": {'Predicted pChEMBL Value': {}, 'Within Applicability Domain': {}, 'Download QPRF': {}, "Download Poses": {}}
         }
         tooltip_dict = {"Model": 'Unique identifier of the model that made the prediction',
                         "Input structure": '2D depiction of molecule',
@@ -209,7 +238,8 @@ def predict():
                         "Experimental value": 'Average of all reported experimental values',
                         "Predicted pChEMBL Value": 'Model prediction for input molecule. pChEMBL is defined as -log(response). More information available in QMRF & QPRF',
                         "Within Applicability Domain": 'AD is based on descriptors of training set. An input molecule is within AD if the distance to the training set is lower than a set threshold. More information available in QMRF & QPRF',
-                        "Download QPRF": 'Automatically filled in report about the prediction'
+                        "Download QPRF": 'Automatically filled in report about the prediction',
+                        "Download Poses": 'Get SDF with docked ligand poses'
                         }
 
         for model_name in model_names:
@@ -217,12 +247,16 @@ def predict():
             model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")
             model = SklearnModel.fromFile(model_path)
             ad = []
-            if getattr(model, 'applicabilityDomain', None):
+            if model.featureCalculators[0].__class__.__name__ == "DataFrameDescriptorSet":
+                predictions, ad, lib_name = ifp.predict(smiles_list, model, model.name.replace("_final", ""), "dimorph")
+                ad = list(ad)
+                store_names.append(lib_name)
+            elif getattr(model, 'applicabilityDomain', None):
                 predictions, ad = model.predictMols(smiles_list, use_applicability_domain=True)
                 ad = list(ad)
             else:
                 predictions = model.predictMols(smiles_list)
-            
+
             # Check if the model is regression or classification
             if model.task.isRegression():
                 formatted_predictions = [f"{pred[0]:.2f}" for pred in predictions]
@@ -233,7 +267,7 @@ def predict():
             all_predictions[model_name] = formatted_predictions
             all_ads[model_name] = ad
 
-            
+
             # Extract model info for report
             with open(model_path, 'r') as meta_file:
                 meta_data = json.load(meta_file)
@@ -245,15 +279,13 @@ def predict():
                     'target_property_name': state['targetProperties'][0]['py/state']['name'],
                     'target_property_task': state['targetProperties'][0]['py/state']['task']['py/reduce'][1]['py/tuple'][0],
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
-                    'radius': state['featureCalculators'][0]['py/state']['radius'],
-                    'nBits': state['featureCalculators'][0]['py/state']['nBits'],
                     'algorithm': state['alg'].split('.')[-1]
                 }
                 model_info_list.append(model_info)
-        
+
         table_data = []
-        
-        for i, smile in enumerate(smiles_list): 
+
+        for i, smile in enumerate(smiles_list):
             image_data = smiles_to_image(smile)
             if getattr(model, 'applicabilityDomain', None):
                 row = [image_data] + [smile] + [all_predictions[model][i] + f' ({str(all_ads[model][i])})' for model in model_names]
@@ -261,20 +293,20 @@ def predict():
                 row = [image_data] + [smile] + [all_predictions[model][i] for model in model_names]
 
             table_data.append(row)
-                        
+
         # Update headers
         headers = ['Structure', 'SMILES']
         tooltips = ['2D depiction of input molecule', 'Line representation of input molecule']
-    
+
         searcher = SimilaritySearcher()
         for model_name in model_names:
             accession = model_name.split("_")[0]
             train_df = pd.read_csv(f'data/{accession}_Data/train_full_model_{accession}.csv').reset_index()
             train_smiles = train_df['SMILES'].to_list()
             ms = [Chem.MolFromSmiles(x) for x in train_smiles]
-            model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")               
+            model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")
             model = SklearnModel.fromFile(model_path)
-            
+
             if getattr(model, 'applicabilityDomain', None):
                 if model.task.isRegression():
                     # Format regression table header
@@ -294,15 +326,15 @@ def predict():
                     headers.append(f'Predicted class label ({model_name})')
                     tooltips.append('Model prediction for input molecule')
 
-            
-            for i, smile in enumerate(smiles_list): 
+
+            for i, smile in enumerate(smiles_list):
                 image_data = smiles_to_image(smile)
                 id_top, score = searcher.get_nearest_neighbors(smile, ms)
                 nearest_neighbor = {}
                 nn_smiles = train_df.iloc[id_top]['SMILES']
                 nearest_neighbor["smiles"] = nn_smiles
                 doc_ids = train_df.iloc[id_top]['all_doc_ids']
-                doc_ids = doc_ids.split(';')
+                doc_ids = str(doc_ids).split(';')
                 doc_links = []
                 for doc_id in doc_ids:
                     if doc_id.startswith('PMID:'):
@@ -311,10 +343,13 @@ def predict():
                         doc_links.append('https://doi.org/' + doc_id)
                     elif doc_id.startswith('PubChemAID:'):
                         doc_links.append(f'https://pubchem.ncbi.nlm.nih.gov/bioassay/{doc_id.lstrip("PubChemAID:")}/')
-                
+
                 nearest_neighbor["reference"] = doc_ids
-                nearest_neighbor["value"] = train_df.iloc[id_top]['pchembl_value_Mean']
-                nearest_neighbor["predicted_value"] = model.predictMols([nn_smiles])[0][0]
+                nearest_neighbor["value"] = train_df.iloc[id_top][model_info['target_property_name']]
+                if model.featureCalculators[0].__class__.__name__ == "DataFrameDescriptorSet":
+                    nearest_neighbor["predicted_value"] = ifp.predict([nn_smiles], model, model.name.replace("_final", ""), "dimorph")[0][0]
+                else:
+                    nearest_neighbor["predicted_value"] = model.predictMols([nn_smiles])[0][0]
                 nearest_neighbor["similarity"] = f"Nearest neighbor was found using {searcher.scorer.__name__} based on {searcher.descgen.__class__.__name__}"
                 image_data_nn = smiles_to_image(nn_smiles)
 
@@ -328,22 +363,29 @@ def predict():
                 data_dict["Nearest Neighbor"]["Source"].setdefault("links", []).append(doc_links)
                 data_dict["Nearest Neighbor"]["Experimental value"].setdefault("value", []).append(f"{nearest_neighbor['value']:.2f}")
                 data_dict["Output"]["Predicted pChEMBL Value"].setdefault("value", []).append(all_predictions[model_name][i])
-                data_dict["Output"]["Within Applicability Domain"].setdefault("value", []).append(all_ads[model_name][i])
+                if len(all_ads[model_name]) > i:
+                    data_dict["Output"]["Within Applicability Domain"].setdefault("value", []).append(all_ads[model_name][i])
+                else:
+                    data_dict["Output"]["Within Applicability Domain"].setdefault("value", []).append(None)
+
                 data_dict["Output"]["Download QPRF"].setdefault("url", []).append("hi")
+                if model.featureCalculators[0].__class__.__name__ == "DataFrameDescriptorSet":
+                    data_dict["Output"]["Download Poses"].setdefault("pose", []).append("hi")
         error_message = None
         if invalid_smiles:
             error_message = f"Invalid SMILES, could not be processed: {', '.join(invalid_smiles)}"  # Mention invalid SMILES in error message
-        
-        return render_template('index.html', 
-                               models=available_models, 
-                               data_dict=data_dict, 
-                               headers=headers, 
-                               tooltips=tooltips, 
-                               data=table_data, 
-                               tooltips_extensive = tooltip_dict, 
-                               smiles_input=smiles_input, 
-                               model_names=model_names, 
-                               file_name=file_name, 
+
+        return render_template('index.html',
+                               models=available_models,
+                               data_dict=data_dict,
+                               headers=headers,
+                               tooltips=tooltips,
+                               data=table_data,
+                               tooltips_extensive = tooltip_dict,
+                               smiles_input=smiles_input,
+                               model_names=model_names,
+                               file_name=file_name,
+                               store_names=store_names,
                                error=error_message)
     except Exception:
         logging.exception("An error occurred while processing the request.")
@@ -367,8 +409,6 @@ def create_report(model_info_list, headers, table_data):
         elements.append(Paragraph(f"Target Property Name: {model_info['target_property_name']}", styles['Normal']))
         elements.append(Paragraph(f"Target Property Task: {model_info['target_property_task']}", styles['Normal']))
         elements.append(Paragraph(f"Feature Calculator: {model_info['feature_calculator']}", styles['Normal']))
-        elements.append(Paragraph(f"Radius: {model_info['radius']}", styles['Normal']))
-        elements.append(Paragraph(f"nBits: {model_info['nBits']}", styles['Normal']))
         elements.append(Paragraph(f"Algorithm: {model_info['algorithm']}", styles['Normal']))
         elements.append(Spacer(1, 12))
 

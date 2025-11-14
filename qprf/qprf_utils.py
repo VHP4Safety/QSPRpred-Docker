@@ -83,7 +83,8 @@ def ad_info(context, value, model):
 def nn_info(context, nearest_neighbor):
     context["analogues"] = nearest_neighbor
     context["analogues"]["source"] = "Nearest neighbor was picked out of the dataset used for model training."
-    context["analogues"]["accuracy"] = f'Difference between experimental value and predicted value is {abs(nearest_neighbor["predicted_value"]-nearest_neighbor["value"]):.2f}. It should be noted that the nearest neighbor was part of the model training set so the accuracy is expected to be high.'
+    if isinstance(nearest_neighbor["predicted_value"], float): 
+        context["analogues"]["accuracy"] = f'Difference between experimental value and predicted value is {abs(nearest_neighbor["predicted_value"]-nearest_neighbor["value"]):.2f}. It should be noted that the nearest neighbor was part of the model training set so the accuracy is expected to be high.'
 
     return context
 
