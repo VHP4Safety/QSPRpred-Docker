@@ -1,0 +1,6 @@
+recursive-include spock test_files/data/*.*
+recursive-include spock test_data/*.*
+recursive-include spock *.tsv
+recursive-include spock *.json
+recursive-include spock *.txt
+recursive-include spock *.md

@@ -1,0 +1,70 @@
+Metadata-Version: 2.4
+Name: spock
+Version: 0.0.1.dev5+g04c2765ab
+Summary: Package for Docking.
+Author-email: Andrius <a.bernatavicius@liacs.leidenuniv.nl>, Martin Sicho <m.sicho@lacdr.leidenuniv.nl>
+Maintainer-email: Andrius <a.bernatavicius@liacs.leidenuniv.nl>, Martin Sicho <m.sicho@lacdr.leidenuniv.nl>
+Project-URL: homepage, https://github.com/CDDLeiden/spock
+Project-URL: repository, https://github.com/CDDLeiden/spock
+Project-URL: documentation, https://cddleiden.github.io/spock/docs/
+Keywords: docking,structure-based drug design,cheminformatics,sbdd
+Classifier: Development Status :: 4 - Beta
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3 :: Only
+Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
+Classifier: Topic :: Scientific/Engineering :: Chemistry
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: scipy
+Requires-Dist: meeko
+Requires-Dist: dimorphite_dl
+Requires-Dist: pandas
+Requires-Dist: tqdm
+Requires-Dist: papyrus_structure_pipeline
+Requires-Dist: numpy
+Requires-Dist: pebble
+Requires-Dist: ipython
+Provides-Extra: vina
+Requires-Dist: vina; extra == "vina"
+Provides-Extra: dev
+Requires-Dist: pre-commit; extra == "dev"
+Requires-Dist: isort; extra == "dev"
+Requires-Dist: yapf; extra == "dev"
+Requires-Dist: ruff; extra == "dev"
+Requires-Dist: pytest; extra == "dev"
+
+
+
+# spock - **S**tandardize, **P**repare, D**ock**
+
+<img src="https://th.bing.com/th/id/OIG.tKEG33W0qiLIBwU0_Fxn?pid=ImgGn"  width="200">
+
+This package contains a minimalistic python API for HTS. Includes pipelines for:
+1. Storage, retrieval
+2. Standardization
+3. Ligand preparation
+4. Docking by using [VinaGPU](https://github.com/DeltaGroupNJUPT/Vina-GPU)*   via a Docker image (not really integrated in the package yet)
+
+## *Work in progress*
+
+### Tutorial 
+
+The **tutorial/** folder contains two notebooks:
+- standardize.ipynb - creating a MoleculeStore and standardizing ligands from an external library
+- ligprep.ipynb - running Schrodinger ligprep on standardized molecules
+
+
+### Installation
+
+Package can be installed as follows:
+
+```bash
+git clone ...
+cd spock
+pip install -e .
+
+
+Testing git capabilities.
+```

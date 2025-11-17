@@ -122,8 +122,6 @@
                                 Property: {{ model.target_property_name }}<br>
                                 Task: {{ model.target_property_task }}<br>
                                 Calculator: {{ model.feature_calculator }}<br>
-                                Radius: {{ model.radius }}<br>
-                                nBits: {{ model.nBits }}<br>
                                 Algorithm: {{ model.algorithm }}<br>
                                 <a href="{{ url_for('download_qmrf', path=model.currDir, target=model.name) }}">Download QMRF here</a>
                             </label>
@@ -144,8 +142,6 @@
                                 Property: {{ model.target_property_name }}<br>
                                 Task: {{ model.target_property_task }}<br>
                                 Calculator: {{ model.feature_calculator }}<br>
-                                Radius: {{ model.radius }}<br>
-                                nBits: {{ model.nBits }}<br>
                                 Algorithm: {{ model.algorithm }}<br>
 								<a href="{{ url_for('download_qmrf', path=model.currDir, target=model.name) }}">Download QMRF here</a>
                             </label>
@@ -262,6 +258,8 @@
                                 </td>
                             {% elif 'url' in data_dict[key][header].keys() %}
                                 <td><a href="{{ url_for('download_qprf', model=data_dict['Model']['value'][i] , smile=data_dict['Input']['SMILES']['value'][i]) }}">Click here to download</a> </td>
+                            {% elif 'pose' in data_dict[key][header].keys() %}
+                                <td><a href="{{ url_for('download_poses', smile = data_dict['Input']['SMILES']['value'][i], protein_id = data_dict['Model']['value'][i].replace('_final', '')) }}">Click here to download</a> </td>
                             {% elif 'links' in data_dict[key][header].keys() %}
                                 <td>
                                 {% for j in range(data_dict[key][header]['links'][i] |length) %}
@@ -280,7 +278,6 @@
             </table>
             </div>
         {% endif %}
-    
         {% if error %}
         <p style="color:red;">{{ error }}</p>
         {% endif %}

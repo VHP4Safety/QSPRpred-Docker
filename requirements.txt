@@ -1,7 +1,9 @@
 qsprpred
-rdkit
+prolif
+-e spock
+vina
 flask
 flask_cors
-pandas
 reportlab
 docxtpl
+gemmi

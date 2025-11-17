@@ -1,0 +1,8 @@
+SMILES
+C=CCC(=O)N[C@H](C)C(=O)N[C@H](C)C(N)=O
+C=C1CC(C(=O)NC(C)C(=O)NC(C)C(N)=O)C1
+C=C1CC(C(=O)NC(C)C(=O)NC(C)C(N)=O)C1
+invalid
+C[Si](C)(C)O
+C12C3C4C1C5C2C3C45
+invalid
