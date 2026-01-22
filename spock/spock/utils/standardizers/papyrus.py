@@ -4,6 +4,7 @@ from papyrus_structure_pipeline import standardizer as Papyrus_standardizer
 from papyrus_structure_pipeline.standardizer import StandardizationResult
 from rdkit import Chem
 from rdkit.Chem.MolStandardize.rdMolStandardize import FragmentParent
+
 from spock.utils.standardizers.base import ChemStandardizer
 
 
@@ -18,7 +19,7 @@ class PapyrusStandardizer(ChemStandardizer):
         remove_additional_metals: bool = True,
         filter_inorganic: bool = False,
         filter_non_small_molecule: bool = True,
-        small_molecule_min_mw: float = 200,
+        small_molecule_min_mw: float = 50,
         small_molecule_max_mw: float = 800,
         canonicalize_tautomer: bool = True,
         tautomer_max_tautomers: int = 2**32 - 1,
@@ -87,7 +88,7 @@ class PapyrusStandardizer(ChemStandardizer):
             uncharge=self._settings["uncharge"],
         )
         results = [x for x in out[1:]]
-        if not StandardizationResult.CORRECT_MOLECULE in results:
+        if StandardizationResult.CORRECT_MOLECULE not in results:
             mol = self.fix_errors(mol, results[-1])
             if not mol:
                 if verbose:
@@ -123,7 +124,7 @@ class PapyrusStandardizer(ChemStandardizer):
     def get_id(self):
         sorted_keys = sorted(self._settings.keys())
         return "PapyrusStandardizer~" + ":".join(
-            [f"{key}={str(self._settings[key])}" for key in sorted_keys]
+            [f"{key}={self._settings[key]!s}" for key in sorted_keys]
         )
 
     def from_settings(self, settings: dict):
