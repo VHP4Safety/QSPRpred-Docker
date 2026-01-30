@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 import ifp
 from qprf.qprf_utils import render_qprf
+from spock.utils.standardizers.papyrus import PapyrusStandardizer
 
 app = Flask(__name__)
 app.jinja_env.filters['zip'] = zip
@@ -32,6 +33,9 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 # Define the models directory
 MODELS_DIR = 'models'
+
+# Initialize SMILES standardizer for handling stereochemistry
+smiles_standardizer = PapyrusStandardizer()
 
 # define RDKit image implementer
 def smiles_to_image(smiles):
@@ -60,6 +64,14 @@ def validate_smiles(smiles_list):
         if Chem.MolFromSmiles(smile) is None:
             invalid_smiles.append(smile)
     return invalid_smiles
+
+def standardize_smiles(smiles):
+    """Standardize a SMILES string, handling stereochemistry."""
+    try:
+        standardized, _ = smiles_standardizer.convert_smiles(smiles)
+        return standardized
+    except Exception:
+        return None
 
 class SimilaritySearcher():
     def __init__(self):
@@ -181,14 +193,19 @@ def predict():
 
             # Check if only one SMILES string is entered
             if len(input_smiles) == 1:
-                if Chem.MolFromSmiles(input_smiles[0]) is None:  # Check for invalid single SMILES
+                standardized = standardize_smiles(input_smiles[0])
+                if standardized is None:  # Check for invalid single SMILES
                     logging.error(f"Invalid SMILES string: {input_smiles[0]}")  # Log the invalid SMILES
                     return render_template('index.html', models=available_models, error="Invalid SMILES string")  # Display error for single invalid SMILES
                 else:
-                    smiles_list.extend(input_smiles)  # Add valid SMILES to processing list
+                    smiles_list.append(standardized)  # Add valid standardized SMILES to processing list
             else:
-                invalid_smiles.extend([smile for smile in input_smiles if Chem.MolFromSmiles(smile) is None])  # Collect invalid SMILES
-                smiles_list.extend([smile for smile in input_smiles if Chem.MolFromSmiles(smile) is not None])  # Collect valid SMILES
+                for smile in input_smiles:
+                    standardized = standardize_smiles(smile)
+                    if standardized is None:
+                        invalid_smiles.append(smile)  # Collect invalid SMILES
+                    else:
+                        smiles_list.append(standardized)  # Collect valid standardized SMILES
 
         # Handle uploaded file
         if uploaded_file and uploaded_file.filename != '':
@@ -198,8 +215,12 @@ def predict():
             logging.debug(f"Uploaded file contents: {uploaded_df.head()}")
             if 'SMILES' in uploaded_df.columns:
                 file_smiles = uploaded_df['SMILES'].tolist()
-                invalid_smiles.extend([smile for smile in file_smiles if Chem.MolFromSmiles(smile) is None])  # Collect invalid SMILES from file
-                smiles_list.extend([smile for smile in file_smiles if Chem.MolFromSmiles(smile) is not None])  # Collect valid SMILES from file
+                for smile in file_smiles:
+                    standardized = standardize_smiles(smile)
+                    if standardized is None:
+                        invalid_smiles.append(smile)  # Collect invalid SMILES from file
+                    else:
+                        smiles_list.append(standardized)  # Collect valid standardized SMILES from file
         elif file_name:
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
             if os.path.exists(file_path):
@@ -207,8 +228,12 @@ def predict():
                 uploaded_df = pd.read_csv(file_path)
                 if 'SMILES' in uploaded_df.columns:
                     file_smiles = uploaded_df['SMILES'].tolist()
-                    invalid_smiles.extend([smile for smile in file_smiles if Chem.MolFromSmiles(smile) is None])  # Collect invalid SMILES from previous file
-                    smiles_list.extend([smile for smile in file_smiles if Chem.MolFromSmiles(smile) is not None])  # Collect valid SMILES from previous file
+                    for smile in file_smiles:
+                        standardized = standardize_smiles(smile)
+                        if standardized is None:
+                            invalid_smiles.append(smile)  # Collect invalid SMILES from previous file
+                        else:
+                            smiles_list.append(standardized)  # Collect valid standardized SMILES from previous file
 
         logging.debug(f"Final SMILES list: {smiles_list}")
         logging.debug(f"Invalid SMILES detected: {invalid_smiles}")  # Log invalid SMILES
@@ -220,8 +245,9 @@ def predict():
 
         store_names = []
         all_predictions = {}
+        all_raw_predictions = {}
         all_ads = {}
-        model_info_list = []
+        model_info_dict = {}
         data_dict = {
             "Model": {},
             "Input": {'SMILES': {}, 'Input structure': {}},
@@ -265,8 +291,8 @@ def predict():
                 formatted_predictions = ["Active" if pred[0] == 1 else "Inactive" for pred in predictions]
 
             all_predictions[model_name] = formatted_predictions
+            all_raw_predictions[model_name] = predictions
             all_ads[model_name] = ad
-
 
             # Extract model info for report
             with open(model_path, 'r') as meta_file:
@@ -281,16 +307,20 @@ def predict():
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
                     'algorithm': state['alg'].split('.')[-1]
                 }
-                model_info_list.append(model_info)
+                model_info_dict[model_name] = model_info
 
         table_data = []
 
         for i, smile in enumerate(smiles_list):
             image_data = smiles_to_image(smile)
-            if getattr(model, 'applicabilityDomain', None):
-                row = [image_data] + [smile] + [all_predictions[model][i] + f' ({str(all_ads[model][i])})' for model in model_names]
+            # Check if any model has AD data
+            if any(all_ads[m] for m in model_names):
+                row = [image_data] + [smile] + [
+                    all_predictions[m][i] + (f' ({str(all_ads[m][i])})' if all_ads[m] else '')
+                    for m in model_names
+                ]
             else:
-                row = [image_data] + [smile] + [all_predictions[model][i] for model in model_names]
+                row = [image_data] + [smile] + [all_predictions[m][i] for m in model_names]
 
             table_data.append(row)
 
@@ -345,7 +375,7 @@ def predict():
                         doc_links.append(f'https://pubchem.ncbi.nlm.nih.gov/bioassay/{doc_id.lstrip("PubChemAID:")}/')
 
                 nearest_neighbor["reference"] = doc_ids
-                nearest_neighbor["value"] = train_df.iloc[id_top][model_info['target_property_name']]
+                nearest_neighbor["value"] = train_df.iloc[id_top][model_info_dict[model_name]['target_property_name']]
                 if model.featureCalculators[0].__class__.__name__ == "DataFrameDescriptorSet":
                     nearest_neighbor["predicted_value"] = ifp.predict([nn_smiles], model, model.name.replace("_final", ""), "dimorph")[0][0]
                 else:
@@ -353,7 +383,10 @@ def predict():
                 nearest_neighbor["similarity"] = f"Nearest neighbor was found using {searcher.scorer.__name__} based on {searcher.descgen.__class__.__name__}"
                 image_data_nn = smiles_to_image(nn_smiles)
 
-                render_qprf(smile, model, predictions[i], ad[i], nearest_neighbor)
+                # Use correct predictions and AD values for this model
+                raw_pred = all_raw_predictions[model_name][i] if model_name in all_raw_predictions else None
+                raw_ad = all_ads[model_name][i] if all_ads[model_name] else None
+                render_qprf(smile, model, raw_pred, raw_ad, nearest_neighbor)
                 data_dict["Model"].setdefault("value", []).append(model_name)
                 data_dict["Input"]["Input structure"].setdefault("image", []).append(image_data)
                 data_dict["Input"]["SMILES"].setdefault("value", []).append(smile)
