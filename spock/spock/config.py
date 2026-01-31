@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 import json
 
@@ -73,8 +73,8 @@ class DefaultConfig(BaseConfig):
     Main configuration class, contains all the configuration parameters
     Can be loaded/saved to restore state
     """
-    paths: PathConfig = PathConfig()
-    ligprep: LigprepParams = LigprepParams()
+    paths: PathConfig = field(default_factory=PathConfig)
+    ligprep: LigprepParams = field(default_factory=LigprepParams)
     # ligprep = SchrodingerLigprepConfig()
     # docking = VinaConfig()
     # standardizer = PapyrusConfig()

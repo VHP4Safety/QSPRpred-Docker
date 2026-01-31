@@ -7,6 +7,18 @@ import os
 
 import numpy as np
 import pandas as pd
+
+logger = logging.getLogger(__name__)
+
+# IMPORTANT: ifp (which imports vina) must be imported BEFORE rdkit to avoid segfault
+# due to conflicting native library dependencies
+try:
+    import ifp
+    IFP_AVAILABLE = True
+except ImportError:
+    IFP_AVAILABLE = False
+    logger.warning("IFP module not available (vina not installed). IFP-based models will not work.")
+
 from flask import Flask, Response, jsonify, render_template, request, send_file
 from flask_cors import CORS
 from qsprpred.models import SklearnModel
@@ -18,9 +30,6 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-logger = logging.getLogger(__name__)
-
-import ifp
 from qprf.qprf_utils import render_qprf
 from spock.utils.standardizers.papyrus import PapyrusStandardizer
 
@@ -252,7 +261,7 @@ def predict():
             "Model": {},
             "Input": {'SMILES': {}, 'Input structure': {}},
             "Nearest Neighbor": {'NN structure': {}, 'Similarity': {}, 'Source': {}, 'Experimental value': {}},
-            "Output": {'Predicted pChEMBL Value': {}, 'Within Applicability Domain': {}, 'Download QPRF': {}, "Download Poses": {}}
+            "Output": {'Predicted pChEMBL Value': {}, 'Within Applicability Domain': {}, 'Download QPRF': {}}
         }
         tooltip_dict = {"Model": 'Unique identifier of the model that made the prediction',
                         "Input structure": '2D depiction of molecule',
@@ -274,6 +283,9 @@ def predict():
             model = SklearnModel.fromFile(model_path)
             ad = []
             if model.featureCalculators[0].__class__.__name__ == "DataFrameDescriptorSet":
+                if not IFP_AVAILABLE:
+                    logging.error(f"Model {model_name} requires IFP/vina but vina is not installed")
+                    return jsonify({"error": f"Model {model_name} requires docking (vina) which is not available"}), 500
                 predictions, ad, lib_name = ifp.predict(smiles_list, model, model.name.replace("_final", ""), "dimorph")
                 ad = list(ad)
                 store_names.append(lib_name)
@@ -377,7 +389,10 @@ def predict():
                 nearest_neighbor["reference"] = doc_ids
                 nearest_neighbor["value"] = train_df.iloc[id_top][model_info_dict[model_name]['target_property_name']]
                 if model.featureCalculators[0].__class__.__name__ == "DataFrameDescriptorSet":
-                    nearest_neighbor["predicted_value"] = ifp.predict([nn_smiles], model, model.name.replace("_final", ""), "dimorph")[0][0]
+                    if IFP_AVAILABLE:
+                        nearest_neighbor["predicted_value"] = ifp.predict([nn_smiles], model, model.name.replace("_final", ""), "dimorph")[0][0]
+                    else:
+                        nearest_neighbor["predicted_value"] = "N/A (vina not available)"
                 else:
                     nearest_neighbor["predicted_value"] = model.predictMols([nn_smiles])[0][0]
                 nearest_neighbor["similarity"] = f"Nearest neighbor was found using {searcher.scorer.__name__} based on {searcher.descgen.__class__.__name__}"
@@ -403,7 +418,7 @@ def predict():
 
                 data_dict["Output"]["Download QPRF"].setdefault("url", []).append("hi")
                 if model.featureCalculators[0].__class__.__name__ == "DataFrameDescriptorSet":
-                    data_dict["Output"]["Download Poses"].setdefault("pose", []).append("hi")
+                    data_dict["Output"].setdefault("Download Poses", {}).setdefault("pose", []).append("hi")
         error_message = None
         if invalid_smiles:
             error_message = f"Invalid SMILES, could not be processed: {', '.join(invalid_smiles)}"  # Mention invalid SMILES in error message

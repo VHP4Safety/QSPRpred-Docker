@@ -654,7 +654,8 @@ class TabularStorage(ChemStore, SMARTSSearchable):
         poses_col = f"{target.name}_poses"
         existing = ""
         if poses_col not in self._poses.columns:
-            self._poses[poses_col] = [None] * self._poses.shape[0]
+            # Use dtype=object to store compressed hex strings
+            self._poses[poses_col] = pd.Series([None] * self._poses.shape[0], dtype=object)
         elif mol_id in self._poses.index:
             previous = self._poses.loc[mol_id, poses_col]
             if previous is not None:

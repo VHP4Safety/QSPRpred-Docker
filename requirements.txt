@@ -1,9 +1,9 @@
 qsprpred==3.1.1
 prolif==2.1.0
 -e spock
-vina==1.2.5
 flask==3.1.0
 flask_cors==5.0.0
 reportlab==4.4.3
 docxtpl==0.19.1
 gemmi==0.7.1
+vina==1.2.7
