@@ -1,0 +1,15 @@
+# Virtual environments
+/flask_env
+/venv
+
+# Python
+__pycache__/
+*.egg-info/
+
+# Generated files
+*.sdf
+poses/
+qprf/output/
+
+# Documentation
+CLAUDE.md

@@ -10,6 +10,7 @@ from rdkit.Chem.MolStandardize import rdMolStandardize
 
 DATA_DIR = pystow.join("QSPRpred", "tutorials")
 MODELS_DIR = pystow.join("QSPRpred", "tutorials", "tutorial_output", "models")
+QPRF_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 enumerator = rdMolStandardize.TautomerEnumerator()
@@ -97,7 +98,7 @@ def render_qprf(smile, model, prediction, ad, nearest_neighbor):
     context = nn_info(context, nearest_neighbor)
 
     tpl = DocxTemplate(
-        "/usr/src/app/qprf/qsar-assessment-framework-annex-2-qsar-prediction-reporting-format.docx"
+        os.path.join(QPRF_DIR, "qsar-assessment-framework-annex-2-qsar-prediction-reporting-format.docx")
     )
     tpl.render(context)
 
