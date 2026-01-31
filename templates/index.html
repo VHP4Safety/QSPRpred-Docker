@@ -167,9 +167,14 @@
         </form>
         {% if data %}
     </div>
-    
+
     <header>
         <h2>Predictions</h2>
+        {% if elapsed_time %}
+        <p style="color: #666; font-size: 14px; margin-top: -10px;">
+            Completed in {% if elapsed_time >= 60 %}{{ (elapsed_time // 60)|int }} min {{ (elapsed_time % 60)|int }} sec{% else %}{{ elapsed_time|round(1) }} sec{% endif %}
+        </p>
+        {% endif %}
     </header>
     <div class="prediction-container">
         <ul class="nav nav-tabs">
@@ -295,11 +300,81 @@
     <div id="loading-overlay" style="display: none;">
         <div class="spinner"></div>
         <p>Processing predictions...</p>
+        <p id="elapsed-timer">Elapsed: 0:00</p>
+        <p id="estimated-time"></p>
     </div>
 
     <script>
+        var timerInterval = null;
+        var elapsedSeconds = 0;
+
+        // Timing stats from historical data (self-learning estimates)
+        var timingStats = {
+            ifp_time_per_mol: {{ timing_stats.ifp_time_per_mol if timing_stats else 45.0 }},
+            standard_time_per_mol: {{ timing_stats.standard_time_per_mol if timing_stats else 2.0 }}
+        };
+
+        function formatTime(seconds) {
+            var mins = Math.floor(seconds / 60);
+            var secs = seconds % 60;
+            if (mins > 0) {
+                return mins + ' min ' + secs + ' sec';
+            }
+            return secs + ' sec';
+        }
+
+        function formatTimerDisplay(seconds) {
+            var mins = Math.floor(seconds / 60);
+            var secs = seconds % 60;
+            return mins + ':' + (secs < 10 ? '0' : '') + secs;
+        }
+
+        function calculateEstimate() {
+            var selectedModels = document.querySelectorAll('input[name="model"]:checked');
+            var numModels = selectedModels.length;
+            if (numModels === 0) return 0;
+
+            var smilesInput = document.getElementById('smiles').value;
+            var numMolecules = 1;
+            if (smilesInput.trim()) {
+                numMolecules = smilesInput.split(',').filter(function(s) { return s.trim(); }).length;
+            }
+
+            var fileInput = document.getElementById('file');
+            if (fileInput.files.length > 0) {
+                numMolecules = Math.max(numMolecules, 5);
+            }
+
+            var hasIfpModel = false;
+            selectedModels.forEach(function(checkbox) {
+                var modelName = checkbox.value;
+                if (modelName.indexOf('4or2') !== -1 || modelName.indexOf('8t6j') !== -1) {
+                    hasIfpModel = true;
+                }
+            });
+
+            var timePerMolecule = hasIfpModel ? timingStats.ifp_time_per_mol : timingStats.standard_time_per_mol;
+            return numMolecules * timePerMolecule * numModels;
+        }
+
         document.querySelector('form').addEventListener('submit', function() {
             document.getElementById('loading-overlay').style.display = 'flex';
+            elapsedSeconds = 0;
+            document.getElementById('elapsed-timer').textContent = 'Elapsed: 0:00';
+
+            var estimate = calculateEstimate();
+            var estimateText = '';
+            if (estimate >= 60) {
+                estimateText = 'Estimated: ~' + Math.ceil(estimate / 60) + ' min';
+            } else if (estimate > 0) {
+                estimateText = 'Estimated: ~' + estimate + ' sec';
+            }
+            document.getElementById('estimated-time').textContent = estimateText;
+
+            timerInterval = setInterval(function() {
+                elapsedSeconds++;
+                document.getElementById('elapsed-timer').textContent = 'Elapsed: ' + formatTimerDisplay(elapsedSeconds);
+            }, 1000);
         });
     </script>
 </body>

@@ -10,6 +10,7 @@ __pycache__/
 *.sdf
 poses/
 qprf/output/
+prediction_times.json
 
 # Documentation
 CLAUDE.md

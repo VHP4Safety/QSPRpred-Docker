@@ -4,11 +4,83 @@ import io
 import json
 import logging
 import os
+import time
 
 import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
+# Timing log configuration
+TIMING_LOG_FILE = 'prediction_times.json'
+MAX_LOG_ENTRIES = 100
+
+def log_prediction_time(is_ifp_model, num_molecules, elapsed_time):
+    """Log timing data and maintain rolling window of MAX_LOG_ENTRIES entries."""
+    try:
+        # Load existing log
+        if os.path.exists(TIMING_LOG_FILE):
+            with open(TIMING_LOG_FILE, 'r') as f:
+                log_data = json.load(f)
+        else:
+            log_data = []
+
+        # Add new entry
+        from datetime import datetime
+        log_data.append({
+            "timestamp": datetime.now().isoformat(),
+            "is_ifp": is_ifp_model,
+            "num_molecules": num_molecules,
+            "elapsed_time": elapsed_time
+        })
+
+        # Keep only the last MAX_LOG_ENTRIES entries
+        if len(log_data) > MAX_LOG_ENTRIES:
+            log_data = log_data[-MAX_LOG_ENTRIES:]
+
+        # Save log
+        with open(TIMING_LOG_FILE, 'w') as f:
+            json.dump(log_data, f, indent=2)
+    except Exception as e:
+        logging.error(f"Error logging prediction time: {e}")
+
+def get_timing_stats():
+    """Calculate average time-per-molecule for IFP and standard models."""
+    # Default values (fallback if no historical data)
+    default_stats = {"ifp_time_per_mol": 45.0, "standard_time_per_mol": 2.0}
+
+    try:
+        if not os.path.exists(TIMING_LOG_FILE):
+            return default_stats
+
+        with open(TIMING_LOG_FILE, 'r') as f:
+            log_data = json.load(f)
+
+        if not log_data:
+            return default_stats
+
+        # Separate IFP and standard model timings
+        ifp_times = []
+        standard_times = []
+
+        for entry in log_data:
+            if entry.get("num_molecules", 0) > 0:
+                time_per_mol = entry["elapsed_time"] / entry["num_molecules"]
+                if entry.get("is_ifp", False):
+                    ifp_times.append(time_per_mol)
+                else:
+                    standard_times.append(time_per_mol)
+
+        # Calculate averages, use defaults if no data for that type
+        stats = {
+            "ifp_time_per_mol": sum(ifp_times) / len(ifp_times) if ifp_times else default_stats["ifp_time_per_mol"],
+            "standard_time_per_mol": sum(standard_times) / len(standard_times) if standard_times else default_stats["standard_time_per_mol"]
+        }
+
+        return stats
+    except Exception as e:
+        logging.error(f"Error reading timing stats: {e}")
+        return default_stats
 
 # IMPORTANT: ifp (which imports vina) must be imported BEFORE rdkit to avoid segfault
 # due to conflicting native library dependencies
@@ -172,11 +244,13 @@ def download_poses():
 @app.route('/predict')
 def home():
     available_models = extract_model_info(MODELS_DIR)
-    return render_template('index.html', models=available_models)
+    timing_stats = get_timing_stats()
+    return render_template('index.html', models=available_models, timing_stats=timing_stats)
 
 @app.route('/predict', methods=['POST'])
 def predict():
     logging.info("Handling prediction request.")
+    start_time = time.time()
     available_models = extract_model_info(MODELS_DIR)
     try:
         smiles_input = request.form.get('smiles')
@@ -191,7 +265,8 @@ def predict():
 
         if not model_names:
             logging.error("No model selected.")
-            return render_template('index.html', models=available_models, error="No model selected.")
+            timing_stats = get_timing_stats()
+            return render_template('index.html', models=available_models, timing_stats=timing_stats, error="No model selected.")
 
         smiles_list = []
         invalid_smiles = []
@@ -205,7 +280,8 @@ def predict():
                 standardized = standardize_smiles(input_smiles[0])
                 if standardized is None:  # Check for invalid single SMILES
                     logging.error(f"Invalid SMILES string: {input_smiles[0]}")  # Log the invalid SMILES
-                    return render_template('index.html', models=available_models, error="Invalid SMILES string")  # Display error for single invalid SMILES
+                    timing_stats = get_timing_stats()
+                    return render_template('index.html', models=available_models, timing_stats=timing_stats, error="Invalid SMILES string")  # Display error for single invalid SMILES
                 else:
                     smiles_list.append(standardized)  # Add valid standardized SMILES to processing list
             else:
@@ -250,13 +326,15 @@ def predict():
         if not smiles_list and not invalid_smiles:
             error_message = "No SMILES strings provided"
             logging.error(error_message)
-            return render_template('index.html', models=available_models, error=error_message)
+            timing_stats = get_timing_stats()
+            return render_template('index.html', models=available_models, timing_stats=timing_stats, error=error_message)
 
         store_names = []
         all_predictions = {}
         all_raw_predictions = {}
         all_ads = {}
         model_info_dict = {}
+        used_ifp_model = False
         data_dict = {
             "Model": {},
             "Input": {'SMILES': {}, 'Input structure': {}},
@@ -289,6 +367,7 @@ def predict():
                 predictions, ad, lib_name = ifp.predict(smiles_list, model, model.name.replace("_final", ""), "dimorph")
                 ad = list(ad)
                 store_names.append(lib_name)
+                used_ifp_model = True
             elif getattr(model, 'applicabilityDomain', None):
                 predictions, ad = model.predictMols(smiles_list, use_applicability_domain=True)
                 ad = list(ad)
@@ -423,6 +502,12 @@ def predict():
         if invalid_smiles:
             error_message = f"Invalid SMILES, could not be processed: {', '.join(invalid_smiles)}"  # Mention invalid SMILES in error message
 
+        elapsed_time = time.time() - start_time
+
+        # Log timing data for self-learning estimates
+        log_prediction_time(used_ifp_model, len(smiles_list), elapsed_time)
+        timing_stats = get_timing_stats()
+
         return render_template('index.html',
                                models=available_models,
                                data_dict=data_dict,
@@ -434,10 +519,13 @@ def predict():
                                model_names=model_names,
                                file_name=file_name,
                                store_names=store_names,
+                               elapsed_time=elapsed_time,
+                               timing_stats=timing_stats,
                                error=error_message)
     except Exception:
         logging.exception("An error occurred while processing the request.")
-        return render_template('index.html', models=available_models, error="An error occurred while processing the request.")
+        timing_stats = get_timing_stats()
+        return render_template('index.html', models=available_models, timing_stats=timing_stats, error="An error occurred while processing the request.")
 
 def create_report(model_info_list, headers, table_data):
     buffer = io.BytesIO()
