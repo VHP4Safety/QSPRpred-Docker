@@ -49,3 +49,19 @@ curl -X POST localhost:5000/api     -H "Content-Type: application/json"     -d '
     }' -o predictions.csv
 ```
 
+### Local Development Setup
+To run the application locally without Docker:
+```sh
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
+Then access the application at http://localhost:5000.
+
+### IFP/Docking Models
+The application includes interaction fingerprint (IFP) models that use molecular docking:
+- **4or2_final** - mGluR1 receptor model
+- **8t6j_b_final** - mGluR5 receptor model
+
+These models use AutoDock Vina for molecular docking and are slower than MorganFP-based models (~30-60 seconds per molecule). They are available in the "Parkinson's Disease" tab.
