@@ -160,24 +160,37 @@ class SimilaritySearcher():
         self.scorer = DataStructs.BulkTanimotoSimilarity
 
     def get_nearest_neighbors(self, smile, ms):
-        """_summary_
+        """Find the most similar molecule in a reference set.
 
         Args:
             smile (str): smiles string
             ms (list): list of rdkit molecules from reference set
 
         Returns:
-            id for most similar molecule in reference set
+            tuple: (index of most similar molecule, similarity score)
+                   Returns (None, 0.0) if query SMILES is invalid or no valid molecules in reference set
         """
         m1 = Chem.MolFromSmiles(smile)
+        if m1 is None:
+            logging.warning(f"Could not parse query SMILES: {smile}")
+            return None, 0.0
+
         query_fp = self.descgen.GetSparseCountFingerprint(m1)
 
-        target_fingerprints = [self.descgen.GetSparseCountFingerprint(x) for x in ms]
+        # Filter out None molecules from reference set, keeping track of original indices
+        valid_molecules = [(i, mol) for i, mol in enumerate(ms) if mol is not None]
+        if not valid_molecules:
+            logging.warning("No valid molecules in reference set")
+            return None, 0.0
+
+        original_indices, valid_mols = zip(*valid_molecules)
+        target_fingerprints = [self.descgen.GetSparseCountFingerprint(x) for x in valid_mols]
         scores = self.scorer(query_fp, target_fingerprints)
 
         id_top = np.argmax(np.array(scores))
 
-        return id_top, max(scores)
+        # Return the original index (not the filtered index)
+        return original_indices[id_top], max(scores)
 
 def extract_model_info(directory):
     models_info = []
@@ -451,31 +464,48 @@ def predict():
             for i, smile in enumerate(smiles_list):
                 image_data = smiles_to_image(smile)
                 id_top, score = searcher.get_nearest_neighbors(smile, ms)
-                nearest_neighbor = {}
-                nn_smiles = train_df.iloc[id_top]['SMILES']
-                nearest_neighbor["smiles"] = nn_smiles
-                doc_ids = train_df.iloc[id_top]['all_doc_ids']
-                doc_ids = str(doc_ids).split(';')
-                doc_links = []
-                for doc_id in doc_ids:
-                    if doc_id.startswith('PMID:'):
-                        doc_links.append(f'https://pubmed.ncbi.nlm.nih.gov/{doc_id.lstrip("PMID:")}/')
-                    elif doc_id.startswith('DOI:'):
-                        doc_links.append('https://doi.org/' + doc_id)
-                    elif doc_id.startswith('PubChemAID:'):
-                        doc_links.append(f'https://pubchem.ncbi.nlm.nih.gov/bioassay/{doc_id.lstrip("PubChemAID:")}/')
 
-                nearest_neighbor["reference"] = doc_ids
-                nearest_neighbor["value"] = train_df.iloc[id_top][model_info_dict[model_name]['target_property_name']]
-                if model.featureCalculators[0].__class__.__name__ == "DataFrameDescriptorSet":
-                    if IFP_AVAILABLE:
-                        nearest_neighbor["predicted_value"] = ifp.predict([nn_smiles], model, model.name.replace("_final", ""), "dimorph")[0][0]
-                    else:
-                        nearest_neighbor["predicted_value"] = "N/A (vina not available)"
+                # Handle case where nearest neighbor search failed
+                if id_top is None:
+                    logging.warning(f"Could not find nearest neighbor for SMILES: {smile}")
+                    # Use placeholder values for nearest neighbor data
+                    nearest_neighbor = {
+                        "smiles": "N/A",
+                        "reference": ["N/A"],
+                        "value": 0.0,
+                        "predicted_value": "N/A",
+                        "similarity": "Could not compute similarity"
+                    }
+                    nn_smiles = None
+                    doc_ids = ["N/A"]
+                    doc_links = []
+                    image_data_nn = None
                 else:
-                    nearest_neighbor["predicted_value"] = model.predictMols([nn_smiles])[0][0]
-                nearest_neighbor["similarity"] = f"Nearest neighbor was found using {searcher.scorer.__name__} based on {searcher.descgen.__class__.__name__}"
-                image_data_nn = smiles_to_image(nn_smiles)
+                    nearest_neighbor = {}
+                    nn_smiles = train_df.iloc[id_top]['SMILES']
+                    nearest_neighbor["smiles"] = nn_smiles
+                    doc_ids = train_df.iloc[id_top]['all_doc_ids']
+                    doc_ids = str(doc_ids).split(';')
+                    doc_links = []
+                    for doc_id in doc_ids:
+                        if doc_id.startswith('PMID:'):
+                            doc_links.append(f'https://pubmed.ncbi.nlm.nih.gov/{doc_id.lstrip("PMID:")}/')
+                        elif doc_id.startswith('DOI:'):
+                            doc_links.append('https://doi.org/' + doc_id)
+                        elif doc_id.startswith('PubChemAID:'):
+                            doc_links.append(f'https://pubchem.ncbi.nlm.nih.gov/bioassay/{doc_id.lstrip("PubChemAID:")}/')
+
+                    nearest_neighbor["reference"] = doc_ids
+                    nearest_neighbor["value"] = train_df.iloc[id_top][model_info_dict[model_name]['target_property_name']]
+                    if model.featureCalculators[0].__class__.__name__ == "DataFrameDescriptorSet":
+                        if IFP_AVAILABLE:
+                            nearest_neighbor["predicted_value"] = ifp.predict([nn_smiles], model, model.name.replace("_final", ""), "dimorph")[0][0]
+                        else:
+                            nearest_neighbor["predicted_value"] = "N/A (vina not available)"
+                    else:
+                        nearest_neighbor["predicted_value"] = model.predictMols([nn_smiles])[0][0]
+                    nearest_neighbor["similarity"] = f"Nearest neighbor was found using {searcher.scorer.__name__} based on {searcher.descgen.__class__.__name__}"
+                    image_data_nn = smiles_to_image(nn_smiles)
 
                 # Use correct predictions and AD values for this model
                 raw_pred = all_raw_predictions[model_name][i] if model_name in all_raw_predictions else None
