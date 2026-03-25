@@ -107,6 +107,7 @@
                 <li class="active"><a data-toggle="tab" href="#thyroid">Thyroid</a></li>
                 <li><a data-toggle="tab" href="#pd">Parkinson's Disease</a></li>
                 <li><a data-toggle="tab" href="#nephrotox">Nephrotoxicity</a></li>
+                <li><a data-toggle="tab" href="#archived">Archived</a></li>
             </ul>
  
             <div class="tab-content">
@@ -151,7 +152,26 @@
                 </div>
                 <div id="nephrotox" class="tab-pane fade">
                 <p>MIE models for the nephrotoxicity case study are in progress.</p>
-            </div>
+                </div>
+                <div id="archived" class="tab-pane fade">
+                        <label>MIE models:</label><br>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
+                            {% for model in models if model.case_study == 'archived' %}
+                            <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
+                                <input type="checkbox" id="model_pd_{{ loop.index }}" name="model" value="{{ model.name }}" {% if model.name in model_names %}checked{% endif %}>
+                                <label for="model_pd_{{ loop.index }}">
+                                    <strong>{{ model.pref_name }}</strong><br>
+                                    Model: {{ model.name }}<br>
+                                    Property: {{ model.target_property_name }}<br>
+                                    Task: {{ model.target_property_task }}<br>
+                                    Calculator: {{ model.feature_calculator }}<br>
+                                    Algorithm: {{ model.algorithm }}<br>
+                                    <a href="{{ url_for('download_qmrf', path=model.currDir, target=model.name) }}">Download QMRF here</a>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 
             
             <br>
