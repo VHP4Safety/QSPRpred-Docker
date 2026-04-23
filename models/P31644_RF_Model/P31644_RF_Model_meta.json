@@ -4145,7 +4145,7 @@
         "alg": "sklearn.ensemble._forest.RandomForestRegressor",
         "randomState": 2,
         "pref_name": "GABA",
-        "case_study": "pd",
+        "case_study": "archived",
         "estimator": "./P31644_RF_Model/P31644_RF_Model.json"
     }
 }
