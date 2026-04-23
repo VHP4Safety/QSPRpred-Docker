@@ -1,7 +1,7 @@
 qsprpred==3.1.1
 prolif==2.1.0
 -e spock
-flask==3.1.0
+flask>=3.1.1
 flask_cors==5.0.0
 reportlab==4.4.3
 docxtpl==0.19.1
