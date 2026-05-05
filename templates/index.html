@@ -190,7 +190,7 @@
     <header>
         <h2>Predictions</h2>
         {% if elapsed_time %}
-        <p style="color: #666; font-size: 14px; margin-top: -10px;">
+        <p style="color: rgba(255,255,255,0.85); font-size: 14px; margin-top: -10px;">
             Completed in {% if elapsed_time >= 60 %}{{ (elapsed_time // 60)|int }} min {{ (elapsed_time % 60)|int }} sec{% else %}{{ elapsed_time|round(1) }} sec{% endif %}
         </p>
         {% endif %}

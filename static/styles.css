@@ -13,13 +13,6 @@ header {
     color: white;
 }
 
-.subheader {
-    background-color: #ff0000;
-    padding: 20px;
-    text-align: center;
-    color: white;
-}
-
 .center {
     display: block;
     margin-left: auto;
