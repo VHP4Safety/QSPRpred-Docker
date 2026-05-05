@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QSPRpred - SMILES Prediction</title>
+    <title>VHP4Safety - MIE Bioactivity Prediction</title>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.24/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/1.7.1/css/buttons.dataTables.min.css">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
@@ -96,13 +96,12 @@
 </head>
 <body>
     <img src="{{ url_for('static', filename='img/logo.png') }}" alt="VHP4Safety Logo" class="center">
-    <h2 class="subheader">This tool is under development, models and interface are subject to change </h2>
     <header>
-        <h1>QSPRpred - pChEMBL Value Prediction</h1>
+        <h1>Predicting Chemical Bioactivity at Molecular Initiating Events</h1>
     </header>
     <div class="container">
         <form action="/predict" method="post" enctype="multipart/form-data">
-            <p>This tool allows users to predict the activity of their chemicals of interest for various molecular initiation events from the VHP4Safety case studies. This prediction is done by target-specific, pretrained QSAR models. Next to the model name the containers below also show some model properties. Compounds should be entered as SMILES strings. The predicted bioactivity is given as predicted pchembl. This translates to a concentration of 10^-pchembl for a half maximal response. For example, an IC50 measurement of 1nM would have a pChEMBL value of 9.</p>
+            <p>This tool was developed for the <a href="https://www.vhp4safety.nl/" target="_blank">VHP4Safety</a> project to share pretrained QSAR models for molecular initiating events (MIEs) across the project's case studies. Each model predicts the bioactivity of a chemical against a specific target. To use the tool, select one or more models below, enter your molecule(s) as SMILES, and run the prediction. Each model card shows its target and key properties; QMRF documents are available for full model details.</p>
             <ul class="nav nav-tabs">
                 <li class="active"><a data-toggle="tab" href="#thyroid">Thyroid</a></li>
                 <li><a data-toggle="tab" href="#pd">Parkinson's Disease</a></li>
@@ -309,6 +308,20 @@
     </div>
 </div>
 </div>
+
+    <section class="container" id="about">
+        <h2>About</h2>
+        <p>This service is built on <strong>QSPRpred</strong>, an open-source toolkit for building and deploying quantitative structure&ndash;property relationship models, developed and maintained by the Computational Drug Discovery group at the Leiden Academic Centre for Drug Research (LACDR). For more information, see the <a href="https://chemrxiv.org/engage/chemrxiv/article-details/65e1bcd69138d231616a560a" target="_blank">QSPRpred preprint</a> and the <a href="https://github.com/CDDLeiden/QSPRpred" target="_blank">QSPRpred repository</a>.</p>
+
+        <h2>Acknowledgements</h2>
+        <p>This tool is developed within the <a href="https://www.vhp4safety.nl/" target="_blank">VHP4Safety</a> project. We thank the contributors and supervisors who developed, curated, and validated the models made available through this interface, including:</p>
+        <ul>
+            <li>The QSPRpred development team at the Computational Drug Discovery group, LACDR, Leiden University.</li>
+            <li>Researchers and students contributing case-study models for thyroid, Parkinson's disease, and nephrotoxicity endpoints.</li>
+            <li>The VHP4Safety consortium partners providing case-study guidance and curated reference data.</li>
+        </ul>
+        <p><em>This is a living acknowledgements list &mdash; if your contribution is missing, please <a href="https://github.com/VHP4Safety/QSPRpred-Docker/issues" target="_blank">open an issue</a>.</em></p>
+    </section>
 
     <footer>
         <p class="footer-content">
