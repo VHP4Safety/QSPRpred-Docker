@@ -77,6 +77,10 @@ h2 {
     margin-left: 2px;
 }
 
+.ack-person {
+    white-space: nowrap;
+}
+
 img.logo {
     display: block;
     margin: 0 auto;
