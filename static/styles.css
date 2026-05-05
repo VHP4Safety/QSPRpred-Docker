@@ -61,6 +61,15 @@ h2 {
     color: #ffffff;
 }
 
+#about h2 {
+    color: #29235C;
+    margin-top: 1em;
+}
+
+#about a {
+    color: #307BBF;
+}
+
 img.logo {
     display: block;
     margin: 0 auto;
