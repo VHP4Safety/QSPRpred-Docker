@@ -70,6 +70,13 @@ h2 {
     color: #307BBF;
 }
 
+.orcid-icon {
+    width: 14px;
+    height: 14px;
+    vertical-align: text-bottom;
+    margin-left: 2px;
+}
+
 img.logo {
     display: block;
     margin: 0 auto;
