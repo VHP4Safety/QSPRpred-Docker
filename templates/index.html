@@ -101,7 +101,7 @@
     </header>
     <div class="container">
         <form action="/predict" method="post" enctype="multipart/form-data">
-            <p>This tool was developed for the <a href="https://www.vhp4safety.nl/" target="_blank">VHP4Safety</a> project to share pretrained QSAR models for molecular initiating events (MIEs) across the project's case studies. Each model predicts the bioactivity of a chemical against a specific target. To use the tool, select one or more models below, enter your molecule(s) as SMILES, and run the prediction. Each model card shows its target and key properties; QMRF documents are available for full model details.</p>
+            <p>Predict the bioactivity of your chemicals of interest against molecular initiating events (MIEs) from the <a href="https://www.vhp4safety.nl/" target="_blank">VHP4Safety</a> case studies. Select one or more models below, enter your molecule(s) as SMILES, and run the prediction. Each model card shows its target and key properties; QMRF documents are available for full model details. The source code for this interface is available on <a href="https://github.com/VHP4Safety/QSPRpred-Docker" target="_blank">GitHub</a>.</p>
             <ul class="nav nav-tabs">
                 <li class="active"><a data-toggle="tab" href="#thyroid">Thyroid</a></li>
                 <li><a data-toggle="tab" href="#pd">Parkinson's Disease</a></li>
@@ -311,21 +311,21 @@
 
     <section class="container" id="about">
         <h2>About</h2>
-        <p>This web tool is the <a href="https://www.vhp4safety.nl/" target="_blank">VHP4Safety</a> graphical interface for running pretrained QSAR models on chemicals of interest. Predictions are computed with <strong>QSPRpred</strong>, an open-source toolkit for building and deploying quantitative structure&ndash;property relationship models, developed and maintained by the Computational Drug Discovery group at the Leiden Academic Centre for Drug Research (LACDR), Leiden University. For more on QSPRpred itself, see the <a href="https://doi.org/10.1186/s13321-024-00908-y" target="_blank">QSPRpred publication (J. Cheminform., 2024)</a> and the <a href="https://github.com/CDDLeiden/QSPRpred" target="_blank">QSPRpred repository</a>.</p>
+        <p>Predictions are computed with <strong>QSPRpred</strong>, an open-source toolkit for building and deploying quantitative structure&ndash;property relationship models, developed and maintained by the Computational Drug Discovery group at the Leiden Academic Centre for Drug Research (LACDR), Leiden University. For more on QSPRpred itself, see the <a href="https://doi.org/10.1186/s13321-024-00908-y" target="_blank">QSPRpred publication (J. Cheminform., 2024)</a> and the <a href="https://github.com/CDDLeiden/QSPRpred" target="_blank">QSPRpred repository</a>.</p>
 
         <h2>Acknowledgements</h2>
         <p>Thanks to everyone who has contributed code, models, or feedback to this tool:
-            Linde Schoenmaker <a href="https://orcid.org/0000-0001-9879-1004" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
-            Marvin Martens <a href="https://orcid.org/0000-0003-2230-0840" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
-            Chris Evelo <a href="https://orcid.org/0000-0002-5301-3142" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
-            Egon Willighagen <a href="https://orcid.org/0000-0001-7542-0286" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
-            Fabian Wagenaars <a href="https://orcid.org/0000-0003-4766-7358" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
-            Gerard van Westen <a href="https://orcid.org/0000-0003-0717-1817" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
-            Javier Mill&aacute;n Acosta <a href="https://orcid.org/0000-0002-4166-7093" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
-            Jelle van den Berg <a href="https://orcid.org/0009-0007-8687-6810" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
-            Ozan &Ccedil;&inodot;nar <a href="https://orcid.org/0000-0003-0329-1977" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
+            Linde Schoenmaker&nbsp;<a href="https://orcid.org/0000-0001-9879-1004" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
+            Marvin Martens&nbsp;<a href="https://orcid.org/0000-0003-2230-0840" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
+            Chris Evelo&nbsp;<a href="https://orcid.org/0000-0002-5301-3142" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
+            Egon Willighagen&nbsp;<a href="https://orcid.org/0000-0001-7542-0286" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
+            Fabian Wagenaars&nbsp;<a href="https://orcid.org/0000-0003-4766-7358" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
+            Gerard van Westen&nbsp;<a href="https://orcid.org/0000-0003-0717-1817" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
+            Javier Mill&aacute;n Acosta&nbsp;<a href="https://orcid.org/0000-0002-4166-7093" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
+            Jelle van den Berg&nbsp;<a href="https://orcid.org/0009-0007-8687-6810" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
+            Ozan &Ccedil;&inodot;nar&nbsp;<a href="https://orcid.org/0000-0003-0329-1977" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>,
             Sam Davidse,
-            and Youp Hendriks-Vettehen <a href="https://orcid.org/0009-0003-2459-8887" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>.
+            and Youp Hendriks-Vettehen&nbsp;<a href="https://orcid.org/0009-0003-2459-8887" target="_blank" rel="noopener" title="ORCID iD"><img src="{{ url_for('static', filename='img/orcid.svg') }}" alt="ORCID iD" class="orcid-icon"></a>.
         </p>
     </section>
 
