@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: QSPRpred-Docker
+abstract: >-
+  A Dockerized web service built on QSPRpred for predicting chemical bioactivity
+  at molecular initiating events (MIEs) from the VHP4Safety case studies (thyroid,
+  Parkinson's disease, nephrotoxicity), with a web user interface and a JSON/CSV API.
+  This is the project-end archived version produced during the VHP4Safety project.
+type: software
+version: 1.0.0
+date-released: "2026-06-01"
+license: MIT
+repository-code: "https://github.com/VHP4Safety/QSPRpred-Docker"
+url: "https://qsprpred.cloud.vhp4safety.nl"
+keywords:
+  - QSAR
+  - QSPRpred
+  - VHP4Safety
+  - cheminformatics
+  - bioactivity prediction
+  - molecular initiating event
+authors:
+  - family-names: Martens
+    given-names: Marvin
+    orcid: "https://orcid.org/0000-0003-2230-0840"
+    affiliation: "Maastricht University"
+  - family-names: Schoenmaker
+    given-names: Linde
+    affiliation: "Leiden University, LACDR"
+    # TODO: confirm ORCID
+  - family-names: Çınar
+    given-names: Ozan
+    # TODO: confirm affiliation and ORCID
+  - family-names: Davidse
+    given-names: Sam
+    # TODO: confirm given-name spelling, affiliation, and ORCID
+  - name: "Rhadekz"
+    # TODO: replace GitHub handle with full name, affiliation, and ORCID
