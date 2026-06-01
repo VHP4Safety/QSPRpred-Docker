@@ -210,6 +210,7 @@ def extract_model_info(directory):
             with open(meta_path, 'r') as meta_file:
                 meta_data = json.load(meta_file)
                 state = meta_data['py/state']
+                curr_dir = os.path.join(directory, d)
                 model_info = {
                     'name': state['name'],
                     'pref_name': state['pref_name'],
@@ -218,7 +219,9 @@ def extract_model_info(directory):
                     'target_property_task': state['targetProperties'][0]['py/state']['task']['py/reduce'][1]['py/tuple'][0],
                     'feature_calculator': state['featureCalculators'][0]['py/object'].split('.')[-1],
                     'algorithm': state['alg'].split('.')[-1],
-                    'currDir': os.path.join(directory, d),
+                    'currDir': curr_dir,
+                    # Only some models ship a QMRF document; used to hide a dead download link
+                    'has_qmrf': os.path.isfile(os.path.join(curr_dir, f"qmrf_{state['name']}.docx")),
                 }
                 models_info.append(model_info)
                 logging.info(f"Loaded model metadata: {model_info}")
@@ -228,7 +231,10 @@ def extract_model_info(directory):
 def download_qmrf():
     path = request.args.get('path')
     target = request.args.get('target')
-    return send_file(path + f'/qmrf_{target}.docx', as_attachment=True)
+    qmrf_path = f'{path}/qmrf_{target}.docx'
+    if not os.path.isfile(qmrf_path):
+        return jsonify({'error': f'No QMRF document is available for {target}.'}), 404
+    return send_file(qmrf_path, as_attachment=True)
 
 @app.route('/downloadqprf')
 def download_qprf():

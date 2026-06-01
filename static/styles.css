@@ -261,3 +261,9 @@ th {
     color: #fff;
     background: #E6007E;
 }
+
+.qmrf-missing {
+    color: #888;
+    font-style: italic;
+    font-size: 13px;
+}
