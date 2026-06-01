@@ -93,6 +93,7 @@ except ImportError:
 
 from flask import Flask, Response, jsonify, render_template, request, send_file
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 from qsprpred.models import SklearnModel
 from rdkit import Chem, DataStructs
 from rdkit.Chem import AllChem, Draw
@@ -114,6 +115,14 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 
 # Define the models directory
 MODELS_DIR = 'models'
+
+# Maximum number of SMILES accepted in a single prediction request
+MAX_SMILES = 1000
+
+# Folder where uploaded CSVs are stored so they persist across re-runs
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Initialize SMILES standardizer for handling stereochemistry
 smiles_standardizer = PapyrusStandardizer()
@@ -307,9 +316,12 @@ def predict():
 
         # Handle uploaded file
         if uploaded_file and uploaded_file.filename != '':
-            file_name = uploaded_file.filename
+            file_name = secure_filename(uploaded_file.filename)
             logging.debug("Processing uploaded file.")
-            uploaded_df = pd.read_csv(uploaded_file)
+            # Persist the upload so a subsequent run can reuse it without re-uploading
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
+            uploaded_file.save(file_path)
+            uploaded_df = pd.read_csv(file_path)
             logging.debug(f"Uploaded file contents: {uploaded_df.head()}")
             if 'SMILES' in uploaded_df.columns:
                 file_smiles = uploaded_df['SMILES'].tolist()
@@ -320,6 +332,7 @@ def predict():
                     else:
                         smiles_list.append(standardized)  # Collect valid standardized SMILES from file
         elif file_name:
+            file_name = secure_filename(file_name)
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], file_name)
             if os.path.exists(file_path):
                 logging.debug("Reprocessing previous uploaded file.")
@@ -338,6 +351,14 @@ def predict():
 
         if not smiles_list and not invalid_smiles:
             error_message = "No SMILES strings provided"
+            logging.error(error_message)
+            timing_stats = get_timing_stats()
+            return render_template('index.html', models=available_models, timing_stats=timing_stats, error=error_message)
+
+        total_submitted = len(smiles_list) + len(invalid_smiles)
+        if total_submitted > MAX_SMILES:
+            error_message = (f"Too many SMILES submitted: {total_submitted} > {MAX_SMILES}. "
+                             "Please split your input into smaller batches.")
             logging.error(error_message)
             timing_stats = get_timing_stats()
             return render_template('index.html', models=available_models, timing_stats=timing_stats, error=error_message)
