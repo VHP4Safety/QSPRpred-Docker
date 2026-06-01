@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import time
+import zipfile
 
 import numpy as np
 import pandas as pd
@@ -441,7 +442,7 @@ def predict():
             # Check if any model has AD data
             if any(all_ads[m] for m in model_names):
                 row = [image_data] + [smile] + [
-                    all_predictions[m][i] + (f' ({str(all_ads[m][i])})' if all_ads[m] else '')
+                    all_predictions[m][i] + (f' ({format_ad(all_ads[m][i])})' if all_ads[m] else '')
                     for m in model_names
                 ]
             else:
@@ -559,15 +560,9 @@ def predict():
         log_prediction_time(used_ifp_model, len(smiles_list), elapsed_time)
         timing_stats = get_timing_stats()
 
-        # Generate a downloadable PDF report instead of re-rendering the page
+        # Generate a downloadable report bundle (PDF + CSV + QMRF + QPRF) instead of re-rendering
         if request.form.get('download_report'):
-            report_models = [model_info_dict[m] for m in model_names if m in model_info_dict]
-            # Drop the 'Structure' image column (col 0); keep SMILES + predictions as text
-            report_headers = headers[1:]
-            report_rows = [[row[1]] + [str(cell) for cell in row[2:]] for row in table_data]
-            report_buffer = create_report(report_models, report_headers, report_rows)
-            return send_file(report_buffer, as_attachment=True,
-                             download_name='qsprpred_report.pdf', mimetype='application/pdf')
+            return build_report_bundle(model_names, smiles_list, model_info_dict, headers, table_data)
 
         return render_template('index.html',
                                models=available_models,
@@ -587,6 +582,51 @@ def predict():
         logging.exception("An error occurred while processing the request.")
         timing_stats = get_timing_stats()
         return render_template('index.html', models=available_models, timing_stats=timing_stats, error="An error occurred while processing the request.")
+
+def format_ad(ad_value):
+    """Render an applicability-domain value as a readable label instead of a raw array."""
+    try:
+        flag = bool(ad_value[0]) if hasattr(ad_value, '__len__') else bool(ad_value)
+    except (TypeError, IndexError):
+        return str(ad_value)
+    return 'within AD' if flag else 'outside AD'
+
+
+def build_report_bundle(model_names, smiles_list, model_info_dict, headers, table_data):
+    """Build a ZIP with the summary PDF, a predictions CSV, and per-model QMRF /
+    per-prediction QPRF documents, and return it as a download."""
+    # Summary PDF (create_report mutates the rows it receives, so pass a fresh copy)
+    report_models = [model_info_dict[m] for m in model_names if m in model_info_dict]
+    report_headers = headers[1:]  # drop the 'Structure' image column
+    report_rows = [[row[1]] + [str(cell) for cell in row[2:]] for row in table_data]
+    pdf_buffer = create_report(report_models, report_headers, report_rows)
+
+    # Predictions CSV (rebuilt from the original table_data, text only)
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    writer.writerow(headers[1:])
+    for row in table_data:
+        writer.writerow([row[1]] + [str(cell) for cell in row[2:]])
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr('prediction_report.pdf', pdf_buffer.getvalue())
+        zf.writestr('predictions.csv', csv_buffer.getvalue())
+        for model_name in model_names:
+            # QMRF: per-model methodology document shipped alongside the model
+            qmrf_path = os.path.join(MODELS_DIR, model_name, f'qmrf_{model_name}.docx')
+            if os.path.exists(qmrf_path):
+                zf.write(qmrf_path, arcname=f'qmrf/{model_name}.docx')
+            # QPRF: per-prediction report generated during the prediction loop
+            for idx, smile in enumerate(smiles_list):
+                qprf_path = os.path.join('qprf', 'output', model_name, f'{smile}.docx')
+                if os.path.exists(qprf_path):
+                    safe = secure_filename(smile) or f'molecule_{idx + 1}'
+                    zf.write(qprf_path, arcname=f'qprf/{model_name}/{safe}.docx')
+    zip_buffer.seek(0)
+    return send_file(zip_buffer, as_attachment=True,
+                     download_name='qsprpred_report.zip', mimetype='application/zip')
+
 
 def create_report(model_info_list, headers, table_data):
     buffer = io.BytesIO()

@@ -167,7 +167,7 @@
                 </div>
 
                 <div id="pd" class="tab-pane fade">
-                    <label>MIE models:</label><br>
+                    <label>MIE models:</label><sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" title="QSAR models for different endpoints. Download QMRF for model specific information"> </sup>
                     <button type="button" class="select-all-btn" onclick="toggleTabModels(this)">Select all in this tab</button>
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
                         {% for model in models if model.case_study == 'pd' %}
@@ -190,13 +190,13 @@
                 <p>MIE models for the nephrotoxicity case study are in progress.</p>
                 </div>
                 <div id="archived" class="tab-pane fade">
-                        <label>MIE models:</label><br>
+                        <label>MIE models:</label><sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" title="QSAR models for different endpoints. Download QMRF for model specific information"> </sup>
                         <button type="button" class="select-all-btn" onclick="toggleTabModels(this)">Select all in this tab</button>
                         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
                             {% for model in models if model.case_study == 'archived' %}
                             <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
-                                <input type="checkbox" id="model_pd_{{ loop.index }}" name="model" value="{{ model.name }}" {% if model.name in model_names %}checked{% endif %}>
-                                <label for="model_pd_{{ loop.index }}">
+                                <input type="checkbox" id="model_archived_{{ loop.index }}" name="model" value="{{ model.name }}" {% if model.name in model_names %}checked{% endif %}>
+                                <label for="model_archived_{{ loop.index }}">
                                     <strong>{{ model.pref_name }}</strong><br>
                                     Model: {{ model.name }}<br>
                                     Property: {{ model.target_property_name }}<br>
