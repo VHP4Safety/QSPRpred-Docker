@@ -559,6 +559,16 @@ def predict():
         log_prediction_time(used_ifp_model, len(smiles_list), elapsed_time)
         timing_stats = get_timing_stats()
 
+        # Generate a downloadable PDF report instead of re-rendering the page
+        if request.form.get('download_report'):
+            report_models = [model_info_dict[m] for m in model_names if m in model_info_dict]
+            # Drop the 'Structure' image column (col 0); keep SMILES + predictions as text
+            report_headers = headers[1:]
+            report_rows = [[row[1]] + [str(cell) for cell in row[2:]] for row in table_data]
+            report_buffer = create_report(report_models, report_headers, report_rows)
+            return send_file(report_buffer, as_attachment=True,
+                             download_name='qsprpred_report.pdf', mimetype='application/pdf')
+
         return render_template('index.html',
                                models=available_models,
                                data_dict=data_dict,
@@ -631,6 +641,11 @@ def create_report(model_info_list, headers, table_data):
     buffer.seek(0)
     return buffer
 
+@app.route('/get_models', methods=['GET'])
+def get_models():
+    """Return JSON metadata for all available models (name, target, task, algorithm, etc.)."""
+    return jsonify(extract_model_info(MODELS_DIR))
+
 @app.route('/api', methods=['POST'])
 def apipredict():
     data = request.json
@@ -645,6 +660,7 @@ def apipredict():
         return jsonify({'error': 'Invalid input: please provide a list of model names.'}), 400
 
     all_predictions = {}
+    all_ads = {}
 
     for model_name in models:
         model_path = os.path.join(MODELS_DIR, model_name, f"{model_name}_meta.json")
@@ -652,9 +668,14 @@ def apipredict():
             return jsonify({'error': f"Model {model_name} does not exist."}), 400
 
         model = SklearnModel.fromFile(model_path)
-        predictions = model.predictMols(smiles)
-        predictions_formatted = [f"{pred[0]:.4f}" for pred in predictions]
-        all_predictions[model_name] = predictions_formatted
+        # Include the applicability domain in the output when the model supports it (#41)
+        if getattr(model, 'applicabilityDomain', None):
+            predictions, ad = model.predictMols(smiles, use_applicability_domain=True)
+            all_ads[model_name] = [bool(ad[i][0]) for i in range(len(smiles))]
+        else:
+            predictions = model.predictMols(smiles)
+            all_ads[model_name] = None
+        all_predictions[model_name] = [f"{pred[0]:.4f}" for pred in predictions]
 
     # Format the result
     result = []
@@ -662,6 +683,8 @@ def apipredict():
         result_entry = {'smiles': smile}
         for model_name in models:
             result_entry[f'prediction ({model_name})'] = all_predictions[model_name][i]
+            if all_ads[model_name] is not None:
+                result_entry[f'within_applicability_domain ({model_name})'] = all_ads[model_name][i]
         result.append(result_entry)
 
     if output_format == 'text':

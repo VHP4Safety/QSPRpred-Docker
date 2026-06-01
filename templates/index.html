@@ -102,6 +102,19 @@
             }
         });
 
+        // Select or deselect all model checkboxes within the button's tab pane (#14)
+        function toggleTabModels(btn) {
+            var pane = btn.closest('.tab-pane');
+            if (!pane) return;
+            var boxes = pane.querySelectorAll('input[name="model"]');
+            var anyUnchecked = Array.prototype.some.call(boxes, function (b) { return !b.checked; });
+            boxes.forEach(function (b) {
+                b.checked = anyUnchecked;
+                b.dispatchEvent(new Event('change'));
+            });
+            btn.textContent = anyUnchecked ? 'Deselect all in this tab' : 'Select all in this tab';
+        }
+
         // Clear the persisted uploaded-file reference so the next run does not reuse it
         function clearUploadedFile() {
             var hidden = document.getElementById('uploaded_file_name');
@@ -134,6 +147,7 @@
             <div class="tab-content">
                 <div id="thyroid" class="tab-pane fade in active">
                     <label>MIE models:</label><sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" title="QSAR models for different endpoints. Download QMRF for model specific information"> </sup>
+                    <button type="button" class="select-all-btn" onclick="toggleTabModels(this)">Select all in this tab</button>
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
                         {% for model in models if model.case_study == 'thyroid' %}
                         <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
@@ -154,6 +168,7 @@
 
                 <div id="pd" class="tab-pane fade">
                     <label>MIE models:</label><br>
+                    <button type="button" class="select-all-btn" onclick="toggleTabModels(this)">Select all in this tab</button>
                     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
                         {% for model in models if model.case_study == 'pd' %}
                         <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
@@ -176,6 +191,7 @@
                 </div>
                 <div id="archived" class="tab-pane fade">
                         <label>MIE models:</label><br>
+                        <button type="button" class="select-all-btn" onclick="toggleTabModels(this)">Select all in this tab</button>
                         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px;">
                             {% for model in models if model.case_study == 'archived' %}
                             <div class="model-tile {% if model.name in model_names %}checked{% endif %}">
