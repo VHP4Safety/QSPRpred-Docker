@@ -90,7 +90,29 @@
                     }
                 });
             });
+
+            // Selecting a new file supersedes any previously persisted upload
+            var fileInput = document.getElementById('file');
+            if (fileInput) {
+                fileInput.addEventListener('change', function () {
+                    if (this.files.length > 0) {
+                        clearUploadedFile();
+                    }
+                });
+            }
         });
+
+        // Clear the persisted uploaded-file reference so the next run does not reuse it
+        function clearUploadedFile() {
+            var hidden = document.getElementById('uploaded_file_name');
+            if (hidden) {
+                hidden.value = '';
+            }
+            var status = document.getElementById('file-status');
+            if (status) {
+                status.remove();
+            }
+        }
     </script>
     
 </head>
@@ -178,8 +200,14 @@
             <input type="text" id="smiles" name="smiles" value="{{ smiles_input }}" placeholder="Example: Cc1c(Cc2cc(I)c(OCC(=O)O)c(I)c2)c2c(cccc2)o1,O=c1cnn(-c2cc(Cl)c(Oc3ccc(O)c(S(=O)(=O)N4CCc5ccccc54)c3)c(Cl)c2)c(=O)[nH]1"><br><br>
 
             <label for="file">or Upload CSV file with SMILES (with a column named <q>SMILES</q>):</label><sup><img src="/static/img/question-circle.svg" alt="Question circle" width="12" height="12" title="Case sensitive"> </sup><br>
-            <input type="file" id="file" name="file" accept=".csv"><br><br>
-            
+            <input type="file" id="file" name="file" accept=".csv"><br>
+            <input type="hidden" id="uploaded_file_name" name="uploaded_file_name" value="{{ file_name or '' }}">
+            {% if file_name %}
+            <p id="file-status" class="file-status">Using uploaded file: <strong>{{ file_name }}</strong>
+                <button type="button" class="file-clear" onclick="clearUploadedFile()">clear</button></p>
+            {% endif %}
+            <br>
+
             <input type="submit" value="Run">
             <button type="submit" name="download_report" value="true">Generate Report</button>
         </div>
