@@ -224,6 +224,7 @@
             {% endif %}
             <br>
 
+            <input type="hidden" id="download_token" name="download_token" value="">
             <input type="submit" value="Run">
             <button type="submit" name="download_report" value="true">Generate Report</button>
         </div>
@@ -440,7 +441,15 @@
             return numMolecules * timePerMolecule * numModels;
         }
 
-        document.querySelector('form').addEventListener('submit', function() {
+        function hideLoadingOverlay() {
+            document.getElementById('loading-overlay').style.display = 'none';
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        document.querySelector('form').addEventListener('submit', function(event) {
             document.getElementById('loading-overlay').style.display = 'flex';
             elapsedSeconds = 0;
             document.getElementById('elapsed-timer').textContent = 'Elapsed: 0:00';
@@ -458,6 +467,24 @@
                 elapsedSeconds++;
                 document.getElementById('elapsed-timer').textContent = 'Elapsed: ' + formatTimerDisplay(elapsedSeconds);
             }, 1000);
+
+            // The report download returns a file, so the page never navigates and the
+            // overlay would otherwise stay up forever. Tag the request with a token; the
+            // server echoes it back as a cookie when the file is sent, and we poll for it.
+            var submitter = event.submitter;
+            if (submitter && submitter.name === 'download_report') {
+                var token = 'dl_' + Date.now() + '_' + Math.floor(Math.random() * 1e9);
+                document.getElementById('download_token').value = token;
+                var poll = setInterval(function() {
+                    if (document.cookie.indexOf('fileDownloadToken=' + token) !== -1) {
+                        clearInterval(poll);
+                        document.cookie = 'fileDownloadToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+                        hideLoadingOverlay();
+                    }
+                }, 500);
+                // Safety net: never leave the overlay stuck if the cookie is missed
+                setTimeout(function() { clearInterval(poll); hideLoadingOverlay(); }, 300000);
+            }
         });
     </script>
 </body>

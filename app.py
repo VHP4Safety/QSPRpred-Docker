@@ -364,6 +364,19 @@ def predict():
             timing_stats = get_timing_stats()
             return render_template('index.html', models=available_models, timing_stats=timing_stats, error=error_message)
 
+        # Identical structures (e.g. the same molecule written two ways) standardize to
+        # the same SMILES and collapse to a single entry in the docking store, which
+        # breaks the per-molecule mapping. Reject duplicates up front with a clear,
+        # fast message instead of failing deep in the (slow) docking pipeline.
+        unique_smiles = list(dict.fromkeys(smiles_list))
+        if len(unique_smiles) < len(smiles_list):
+            error_message = (f"Duplicate structures detected: {len(smiles_list)} molecules were "
+                             f"submitted but only {len(unique_smiles)} are unique after "
+                             "standardization. Please submit each unique structure once.")
+            logging.error(error_message)
+            timing_stats = get_timing_stats()
+            return render_template('index.html', models=available_models, timing_stats=timing_stats, error=error_message)
+
         store_names = []
         all_predictions = {}
         all_raw_predictions = {}
@@ -578,6 +591,10 @@ def predict():
                                elapsed_time=elapsed_time,
                                timing_stats=timing_stats,
                                error=error_message)
+    except ifp.DockingError as e:
+        logging.warning(f"Docking could not complete: {e}")
+        timing_stats = get_timing_stats()
+        return render_template('index.html', models=available_models, timing_stats=timing_stats, error=str(e))
     except Exception:
         logging.exception("An error occurred while processing the request.")
         timing_stats = get_timing_stats()
@@ -624,8 +641,14 @@ def build_report_bundle(model_names, smiles_list, model_info_dict, headers, tabl
                     safe = secure_filename(smile) or f'molecule_{idx + 1}'
                     zf.write(qprf_path, arcname=f'qprf/{model_name}/{safe}.docx')
     zip_buffer.seek(0)
-    return send_file(zip_buffer, as_attachment=True,
-                     download_name='qsprpred_report.zip', mimetype='application/zip')
+    response = send_file(zip_buffer, as_attachment=True,
+                         download_name='qsprpred_report.zip', mimetype='application/zip')
+    # Echo the client's download token back as a cookie so the UI knows the file was
+    # delivered and can dismiss the loading overlay (the page itself never navigates).
+    token = request.form.get('download_token')
+    if token:
+        response.set_cookie('fileDownloadToken', token, max_age=60)
+    return response
 
 
 def create_report(model_info_list, headers, table_data):
