@@ -159,7 +159,7 @@
                                 Task: {{ model.target_property_task }}<br>
                                 Calculator: {{ model.feature_calculator }}<br>
                                 Algorithm: {{ model.algorithm }}<br>
-                                <a href="{{ url_for('download_qmrf', path=model.currDir, target=model.name) }}">Download QMRF here</a>
+                                {% if model.has_qmrf %}<a href="{{ url_for('download_qmrf', path=model.currDir, target=model.name) }}">Download QMRF here</a>{% else %}<span class="qmrf-missing">QMRF not available</span>{% endif %}
                             </label>
                         </div>
                         {% endfor %}
@@ -180,7 +180,7 @@
                                 Task: {{ model.target_property_task }}<br>
                                 Calculator: {{ model.feature_calculator }}<br>
                                 Algorithm: {{ model.algorithm }}<br>
-								<a href="{{ url_for('download_qmrf', path=model.currDir, target=model.name) }}">Download QMRF here</a>
+								{% if model.has_qmrf %}<a href="{{ url_for('download_qmrf', path=model.currDir, target=model.name) }}">Download QMRF here</a>{% else %}<span class="qmrf-missing">QMRF not available</span>{% endif %}
                             </label>
                         </div>
                         {% endfor %}
@@ -203,7 +203,7 @@
                                     Task: {{ model.target_property_task }}<br>
                                     Calculator: {{ model.feature_calculator }}<br>
                                     Algorithm: {{ model.algorithm }}<br>
-                                    <a href="{{ url_for('download_qmrf', path=model.currDir, target=model.name) }}">Download QMRF here</a>
+                                    {% if model.has_qmrf %}<a href="{{ url_for('download_qmrf', path=model.currDir, target=model.name) }}">Download QMRF here</a>{% else %}<span class="qmrf-missing">QMRF not available</span>{% endif %}
                                 </label>
                             </div>
                             {% endfor %}
