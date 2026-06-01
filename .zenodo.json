@@ -1,0 +1,35 @@
+{
+  "title": "QSPRpred-Docker",
+  "description": "A Dockerized web service built on QSPRpred for predicting chemical bioactivity at molecular initiating events (MIEs) from the VHP4Safety case studies (thyroid, Parkinson's disease, nephrotoxicity), with a web user interface and a JSON/CSV API. Project-end archived version (v1.0.0) produced during the VHP4Safety project.",
+  "upload_type": "software",
+  "license": "MIT",
+  "version": "1.0.0",
+  "keywords": [
+    "QSAR",
+    "QSPRpred",
+    "VHP4Safety",
+    "cheminformatics",
+    "bioactivity prediction",
+    "molecular initiating event"
+  ],
+  "creators": [
+    {
+      "name": "Martens, Marvin",
+      "orcid": "0000-0003-2230-0840",
+      "affiliation": "Maastricht University"
+    },
+    {
+      "name": "Schoenmaker, Linde",
+      "affiliation": "Leiden University, LACDR"
+    },
+    {
+      "name": "Çınar, Ozan"
+    },
+    {
+      "name": "Davidse, Sam"
+    },
+    {
+      "name": "Rhadekz"
+    }
+  ]
+}
