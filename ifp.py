@@ -15,6 +15,10 @@ from spock.storage import TabularStorage
 from spock.utils.standardizers.papyrus import PapyrusStandardizer
 
 
+class DockingError(Exception):
+    """Raised when one or more molecules fail to dock, so the batch cannot complete."""
+
+
 def initialize(lib_name, lib_path):
     # load molecules
     standardizer = PapyrusStandardizer()
@@ -180,6 +184,18 @@ def predict(smiles_list, model, protein_id, prep):
     bits_aligned = get_IFPs(store, protein_id)
     bits_aligned = bits_aligned.drop(columns=["ID"])
 
+    # A molecule that fails to dock produces no poses and is dropped, leaving fewer
+    # rows than inputs. Detect that and fail with a clear message instead of crashing
+    # on the positional indexing below.
+    n_docked = min(len(store._df), len(bits_aligned))
+    if n_docked < len(smiles_list):
+        n_failed = len(smiles_list) - n_docked
+        raise DockingError(
+            f"{n_failed} of {len(smiles_list)} submitted molecule(s) could not be docked "
+            "against this target. Docking-based models need a successful pose for every "
+            "molecule; please submit the molecules individually or remove the structure(s) "
+            "that fail to dock."
+        )
 
     df = store._df.iloc[range(len(smiles_list))]
     file_name = "table"
