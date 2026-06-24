@@ -8,7 +8,7 @@ abstract: >-
   This is the project-end archived version produced during the VHP4Safety project.
 type: software
 version: 1.0.0
-date-released: "2026-06-01"
+date-released: "2026-06-24"
 license: MIT
 repository-code: "https://github.com/VHP4Safety/QSPRpred-Docker"
 url: "https://qsprpred.cloud.vhp4safety.nl"

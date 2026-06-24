@@ -2,17 +2,17 @@
 
 A Docker-based prediction service built on the QSPRpred tool [github.com/CDDLeiden/QSPRpred](https://github.com/CDDLeiden/QSPRpred). It provides a web UI and a JSON/CSV API for predicting chemical bioactivity at molecular initiating events (MIEs) from the VHP4Safety case studies (thyroid, Parkinson's disease, nephrotoxicity), using imported pre-trained models.
 
-> ## 📦 Project-end archived version (v1.0.0)
+> ## 📦 Project-end version (v1.0.0)
 >
-> This repository is the **project-end snapshot** of the QSPRpred-Docker service,
-> developed during the [VHP4Safety](https://www.vhp4safety.nl/) project. The project
-> has concluded, so the repository is **archived (read-only)** and no longer actively
-> maintained. It is preserved as a citable artifact of the work.
+> This is the **project-end milestone** of the QSPRpred-Docker service, developed during
+> the [VHP4Safety](https://www.vhp4safety.nl/) project. Active development under the project
+> has concluded, but the repository **remains open** and is not archived — the backlog of
+> ideas for continuing the tool is kept in the [open issues](https://github.com/VHP4Safety/QSPRpred-Docker/issues).
 >
 > - **Live service:** https://qsprpred.cloud.vhp4safety.nl (available while the VHP4Safety cluster is maintained)
 > - **Container image:** `ghcr.io/vhp4safety/qsprpred-docker:latest` (see [Self-hosting](#self-hosting) to run it yourself)
 > - **Built on:** QSPRpred 3.1.1
-> - Remaining ideas and caveats are recorded under [Future Work](#future-work) and [Known Limitations](#known-limitations).
+> - Outstanding ideas and caveats are summarized under [Future Work](#future-work) and [Known Limitations](#known-limitations) (and tracked in the issues).
 >
 > <!-- DOI-BADGE -->
 
