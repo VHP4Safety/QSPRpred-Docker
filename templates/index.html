@@ -379,6 +379,12 @@
             View the source code on&nbsp<a href="https://github.com/VHP4Safety/QSPRpred-Docker" target="_blank">GitHub</a>&nbsp&nbsp
             <img src="{{ url_for('static', filename='img/github.svg') }}" alt="GitHub Logo">
         </p>
+        <p class="footer-api">
+            Use this tool from your own code:
+            <a href="{{ url_for('api_docs') }}">API documentation</a> &middot;
+            <a href="{{ url_for('openapi_yaml') }}">OpenAPI&nbsp;spec</a> &middot;
+            <a href="{{ url_for('llms_txt') }}">llms.txt</a>
+        </p>
     </footer>
 
     <div id="loading-overlay" style="display: none;">

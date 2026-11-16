@@ -150,6 +150,16 @@ footer img {
     align-items: center;
 }
 
+/* Secondary footer line pointing at the machine-readable API contract. */
+.footer-api {
+    margin: 2px 0 0;
+    font-size: 0.9em;
+}
+
+.footer-api a {
+    text-decoration: underline;
+}
+
 .table-container {
     max-height: 400px; 
     overflow-y: auto;
