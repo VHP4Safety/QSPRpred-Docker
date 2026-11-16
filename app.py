@@ -1,5 +1,6 @@
 import base64
 import csv
+import importlib.metadata
 import io
 import json
 import logging
@@ -9,6 +10,7 @@ import zipfile
 
 import numpy as np
 import pandas as pd
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +119,18 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 # Define the models directory
 MODELS_DIR = 'models'
 
+# Directory holding each model's training set (data/<accession>_Data/)
+DATA_DIR = 'data'
+
+# Version of this deployed service. The API contract has its own version
+# (api_v1.API_VERSION) so the two can move independently.
+SERVICE_VERSION = '1.1.0'
+
+try:
+    QSPRPRED_VERSION = importlib.metadata.version('qsprpred')
+except importlib.metadata.PackageNotFoundError:  # pragma: no cover - always installed
+    QSPRPRED_VERSION = None
+
 # Maximum number of SMILES accepted in a single prediction request
 MAX_SMILES = 1000
 
@@ -222,6 +236,10 @@ def extract_model_info(directory):
                     'currDir': curr_dir,
                     # Only some models ship a QMRF document; used to hide a dead download link
                     'has_qmrf': os.path.isfile(os.path.join(curr_dir, f"qmrf_{state['name']}.docx")),
+                    # Whether the model ships an applicability domain. Surfaced by
+                    # /api/v1 so clients can tell "this model has no AD" apart from
+                    # "this molecule falls outside the AD".
+                    'has_applicability_domain': 'applicabilityDomain' in state,
                 }
                 models_info.append(model_info)
                 logging.info(f"Loaded model metadata: {model_info}")
@@ -710,10 +728,29 @@ def create_report(model_info_list, headers, table_data):
     buffer.seek(0)
     return buffer
 
+# Keys of extract_model_info() that are internal and must not be published.
+# 'currDir' is a server-side filesystem path, needed by the UI template for the
+# QMRF link but meaningless (and leaky) in a JSON response.
+_PRIVATE_MODEL_KEYS = ('currDir',)
+
+
+def public_model_info():
+    """Model metadata with internal keys stripped, for JSON responses."""
+    return [
+        {key: value for key, value in info.items() if key not in _PRIVATE_MODEL_KEYS}
+        for info in extract_model_info(MODELS_DIR)
+    ]
+
+
 @app.route('/get_models', methods=['GET'])
 def get_models():
-    """Return JSON metadata for all available models (name, target, task, algorithm, etc.)."""
-    return jsonify(extract_model_info(MODELS_DIR))
+    """Return JSON metadata for all available models.
+
+    Superseded by GET /api/v1/models, which additionally reports what each model
+    can actually do (batch-API support, applicability domain, runtime). Kept for
+    backwards compatibility.
+    """
+    return jsonify(public_model_info())
 
 @app.route('/api', methods=['POST'])
 def apipredict():
@@ -771,6 +808,65 @@ def apipredict():
 
 
     return jsonify(result)
+
+# --------------------------------------------------------------------------
+# Formal API contract
+# --------------------------------------------------------------------------
+# openapi.yaml is the single source of truth for the /api/v1 surface and is
+# served from the running service so the contract is discoverable at the live
+# URL, not only in the repository. tests/test_openapi_contract.py asserts that
+# the document and the registered routes cannot drift apart.
+
+SPEC_FILE = 'openapi.yaml'
+LLMS_FILE = 'llms.txt'
+
+
+@app.route('/openapi.yaml')
+def openapi_yaml():
+    """Serve the OpenAPI 3.1 description of this service."""
+    return send_file(SPEC_FILE, mimetype='application/yaml')
+
+
+@app.route('/openapi.json')
+def openapi_json():
+    """Serve the same OpenAPI description as JSON, for tooling that needs it."""
+    with open(SPEC_FILE) as spec_file:
+        return jsonify(yaml.safe_load(spec_file))
+
+
+@app.route('/docs')
+def api_docs():
+    """Human-browsable API reference rendered from openapi.yaml."""
+    return render_template('docs.html')
+
+
+@app.route('/llms.txt')
+def llms_txt():
+    """Short orientation file for LLM agents, including how to read the output."""
+    return send_file(LLMS_FILE, mimetype='text/plain')
+
+
+# Registered at the end of the module so every helper injected below is already
+# defined. api_v1 imports no rdkit/qsprpred of its own -- its dependencies are
+# injected -- so it cannot disturb the ifp-before-rdkit import order enforced
+# at the top of this file.
+from api_v1 import init_api_v1  # noqa: E402
+
+init_api_v1(
+    app,
+    extract_model_info=extract_model_info,
+    standardize_smiles=standardize_smiles,
+    get_timing_stats=get_timing_stats,
+    load_model=lambda name: SklearnModel.fromFile(
+        os.path.join(MODELS_DIR, name, f"{name}_meta.json")
+    ),
+    models_dir=MODELS_DIR,
+    data_dir=DATA_DIR,
+    max_smiles=MAX_SMILES,
+    service_version=SERVICE_VERSION,
+    qsprpred_version=QSPRPRED_VERSION,
+)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -1,0 +1,784 @@
+openapi: 3.1.0
+
+info:
+  title: QSPRpred-Docker API
+  version: 1.0.0
+  summary: QSAR bioactivity prediction for VHP4Safety molecular initiating events.
+  description: |
+    Predicts chemical bioactivity at molecular initiating events (MIEs) from the
+    [VHP4Safety](https://www.vhp4safety.nl/) case studies, using pretrained
+    [QSPRpred](https://github.com/CDDLeiden/QSPRpred) models.
+
+    ## How to use this service
+
+    1. Call `GET /api/v1/models` first. It reports, per model, what that model can
+       actually do: whether it works over this API at all (`supports_batch_api`),
+       whether it has an applicability domain, and roughly how long it takes.
+    2. Call `POST /api/v1/predict` with a list of SMILES and a list of model names.
+
+    ## Interpreting the results - please read
+
+    These caveats are part of the contract, not boilerplate. A prediction returned
+    by this service does not support a confident statement about a chemical's
+    hazard on its own.
+
+    - **`pchembl` values are a relative potency indicator, not an absolute
+      measurement.** pChEMBL is `-log10(molar)` aggregated over heterogeneous
+      assays with different assay types, conditions and biological relevance.
+      Compare compounds against each other; do not report a value as a measured
+      affinity.
+    - **Predictions are point estimates.** No model here outputs a confidence or
+      prediction interval, so no uncertainty can be inferred from the response.
+    - **Outside the applicability domain means do not rely on the value.** When
+      `applicability_domain.within` is `false`, the molecule is further from the
+      training set than the model's threshold allows. When `supported` is `false`
+      the model has no applicability domain at all, so no such check was performed
+      - that is not the same as passing it.
+    - Predictions are made on the **standardized** structure, which may differ
+      from the SMILES submitted. Each result reports both.
+
+    ## Limits and stability
+
+    - At most 1000 SMILES per request.
+    - No authentication, no rate limiting. Please be considerate: this is a
+      single-replica academic service.
+    - `/api/v1/*` is the stable, versioned surface. The unversioned `POST /api`
+      and `GET /get_models` are deprecated and kept only for existing clients.
+  contact:
+    name: VHP4Safety
+    url: https://github.com/VHP4Safety/QSPRpred-Docker
+  license:
+    name: MIT
+    url: https://github.com/VHP4Safety/QSPRpred-Docker/blob/main/LICENSE
+
+externalDocs:
+  description: Source code, self-hosting instructions and known limitations
+  url: https://github.com/VHP4Safety/QSPRpred-Docker#readme
+
+servers:
+  - url: https://qsprpred.cloud.vhp4safety.nl
+    description: Live service on the VHP4Safety cluster
+  - url: http://localhost:5000
+    description: Local container or development server
+
+tags:
+  - name: models
+    description: Discover the available models and their capabilities.
+  - name: predictions
+    description: Predict target properties for molecules.
+  - name: meta
+    description: Machine-readable descriptions of this service.
+  - name: deprecated
+    description: Unversioned endpoints kept for backwards compatibility.
+
+paths:
+  /api/v1/models:
+    get:
+      operationId: listModels
+      tags: [models]
+      summary: List the available models and what each can do
+      description: |
+        Returns every installed model with the information needed to choose one
+        and call it correctly. Call this before `POST /api/v1/predict`.
+
+        Pay attention to three fields:
+
+        - `supports_batch_api` - if `false`, this model **cannot** be used with
+          `POST /api/v1/predict`. It requires molecular docking of each input
+          structure, which only the interactive web UI at `/predict` performs.
+        - `applicability_domain_supported` - if `false`, predictions from this
+          model carry no applicability-domain check.
+        - `training_data_available` - if `false`, the model predicts correctly
+          over this API but fails in the web UI, which needs the training set for
+          its nearest-neighbour panel. This is the case for the archived models.
+      responses:
+        "200":
+          description: The model catalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelsResponse"
+              examples:
+                catalog:
+                  summary: A regression model, a docking model and an archived model
+                  value:
+                    api_version: "1.0.0"
+                    service:
+                      name: qsprpred-docker
+                      version: "1.1.0"
+                      qsprpred_version: "3.1.1"
+                    models:
+                      - name: TRalpha
+                        pref_name: TRalpha
+                        case_study: {id: thyroid, label: Thyroid}
+                        task: REGRESSION
+                        target_property_name: pchembl_value_Mean
+                        value_type: pchembl
+                        unit: "-log10(mol/L)"
+                        algorithm: RandomForestRegressor
+                        feature_calculator: MorganFP
+                        requires_docking: false
+                        supports_batch_api: true
+                        applicability_domain_supported: true
+                        training_data_available: true
+                        estimated_seconds_per_molecule: 2.0
+                        max_smiles: 1000
+                        has_qmrf: true
+                        target: {uniprot: P10827, gene: THRA, name: Thyroid hormone receptor alpha}
+                      - name: 4or2_final
+                        pref_name: Metabotropic glutamate receptor 1 (mGluR1)
+                        case_study: {id: pd, label: Parkinson's disease}
+                        task: SINGLECLASS
+                        target_property_name: active
+                        value_type: class_label
+                        unit: null
+                        algorithm: XGBClassifier
+                        feature_calculator: DataFrameDescriptorSet
+                        requires_docking: true
+                        supports_batch_api: false
+                        applicability_domain_supported: true
+                        training_data_available: true
+                        estimated_seconds_per_molecule: 45.0
+                        max_smiles: 1000
+                        has_qmrf: true
+                        target: {uniprot: Q13255, gene: GRM1, name: Metabotropic glutamate receptor 1 (mGluR1)}
+                      - name: P31644_RF_Model
+                        pref_name: GABA
+                        case_study: {id: archived, label: Archived}
+                        task: REGRESSION
+                        target_property_name: pchembl_value_Median
+                        value_type: pchembl
+                        unit: "-log10(mol/L)"
+                        algorithm: RandomForestRegressor
+                        feature_calculator: MorganFP
+                        requires_docking: false
+                        supports_batch_api: true
+                        applicability_domain_supported: false
+                        training_data_available: false
+                        estimated_seconds_per_molecule: 2.0
+                        max_smiles: 1000
+                        has_qmrf: false
+                        target: {uniprot: P31644, gene: GABRA5, name: GABA(A) receptor subunit alpha-5}
+
+  /api/v1/predict:
+    post:
+      operationId: predictActivity
+      tags: [predictions]
+      summary: Predict target properties for one or more molecules
+      description: |
+        Runs every requested model over every submitted SMILES.
+
+        Results are returned in the order submitted, one entry per input SMILES,
+        including inputs that could not be parsed (`valid: false`, with a matching
+        entry in `warnings`). An unparseable SMILES does not fail the request; an
+        unusable *model* does.
+
+        Before relying on a value, read `applicability_domain` and the
+        interpretation caveats in this document's introduction.
+
+        Models with `supports_batch_api: false` are rejected with
+        `model_not_available_via_api`. Use the web UI at `/predict` for those.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PredictRequest"
+            examples:
+              single:
+                summary: One molecule, one model
+                value:
+                  smiles: ["CC(=O)OC1=CC=CC=C1C(=O)O"]
+                  models: ["TRalpha"]
+              multiple:
+                summary: Two molecules against both thyroid receptors
+                value:
+                  smiles:
+                    - "CC(=O)OC1=CC=CC=C1C(=O)O"
+                    - "C1=CC=CC=C1C(=O)NC2=CC=CC=C2"
+                  models: ["TRalpha", "TRbeta"]
+      responses:
+        "200":
+          description: Predictions. Note that `warnings` may be non-empty.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictResponse"
+              examples:
+                success:
+                  summary: Aspirin against TRalpha
+                  value:
+                    api_version: "1.0.0"
+                    service:
+                      name: qsprpred-docker
+                      version: "1.1.0"
+                      qsprpred_version: "3.1.1"
+                    request:
+                      n_input: 1
+                      n_predicted: 1
+                      models: ["TRalpha"]
+                    results:
+                      - input_smiles: "CC(=O)OC1=CC=CC=C1C(=O)O"
+                        standardized_smiles: "CC(=O)Oc1ccccc1C(=O)O"
+                        valid: true
+                        predictions:
+                          - model: TRalpha
+                            task: REGRESSION
+                            value: 5.9989
+                            value_type: pchembl
+                            unit: "-log10(mol/L)"
+                            label: null
+                            applicability_domain: {supported: true, within: true}
+                    warnings: []
+                partly_invalid:
+                  summary: One input could not be parsed
+                  value:
+                    api_version: "1.0.0"
+                    service:
+                      name: qsprpred-docker
+                      version: "1.1.0"
+                      qsprpred_version: "3.1.1"
+                    request:
+                      n_input: 2
+                      n_predicted: 1
+                      models: ["P31644_RF_Model"]
+                    results:
+                      - input_smiles: "CC(=O)OC1=CC=CC=C1C(=O)O"
+                        standardized_smiles: "CC(=O)Oc1ccccc1C(=O)O"
+                        valid: true
+                        predictions:
+                          - model: P31644_RF_Model
+                            task: REGRESSION
+                            value: 6.968
+                            value_type: pchembl
+                            unit: "-log10(mol/L)"
+                            label: null
+                            applicability_domain: {supported: false, within: null}
+                      - input_smiles: "not-a-molecule"
+                        standardized_smiles: null
+                        valid: false
+                        predictions: []
+                    warnings:
+                      - code: invalid_smiles
+                        smiles: "not-a-molecule"
+                        message: SMILES could not be parsed and was skipped.
+        "400":
+          description: |
+            The request could not be served. Check `error.code`:
+            `invalid_request`, `unknown_model`, `model_not_available_via_api`
+            or `no_valid_smiles`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                model_not_available_via_api:
+                  summary: A docking model was requested
+                  value:
+                    error:
+                      code: model_not_available_via_api
+                      message: >-
+                        Model(s) 4or2_final require molecular docking and are not
+                        available over this API. Use the web UI at /predict instead.
+                      details:
+                        models: ["4or2_final"]
+                unknown_model:
+                  summary: Misspelled model name
+                  value:
+                    error:
+                      code: unknown_model
+                      message: "Unknown model(s): TRgamma."
+                      details:
+                        unknown_models: ["TRgamma"]
+                        available_models: ["TRalpha", "TRbeta"]
+                invalid_request:
+                  summary: Wrong type for a field
+                  value:
+                    error:
+                      code: invalid_request
+                      message: "'smiles' must be a non-empty array of strings."
+                      details:
+                        field: smiles
+        "413":
+          description: More than `max_smiles` structures were submitted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                too_many_smiles:
+                  summary: Batch too large
+                  value:
+                    error:
+                      code: too_many_smiles
+                      message: >-
+                        Too many SMILES submitted: 1001 > 1000. Please split your
+                        input into smaller batches.
+                      details:
+                        received: 1001
+                        limit: 1000
+        "500":
+          description: A model failed while predicting.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                prediction_failed:
+                  summary: Model raised during prediction
+                  value:
+                    error:
+                      code: prediction_failed
+                      message: Prediction failed for model TRalpha.
+                      details:
+                        model: TRalpha
+
+  /openapi.yaml:
+    get:
+      operationId: getOpenApiSpec
+      tags: [meta]
+      summary: This OpenAPI document
+      responses:
+        "200":
+          description: The OpenAPI 3.1 description of this service.
+          content:
+            application/yaml:
+              schema:
+                type: string
+
+  /llms.txt:
+    get:
+      operationId: getLlmsTxt
+      tags: [meta]
+      summary: Short plain-text orientation for LLM agents
+      description: |
+        A terse summary of what this service does, how to call it, and how to
+        interpret the output, following the `llms.txt` convention.
+      responses:
+        "200":
+          description: Plain-text orientation file.
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /get_models:
+    get:
+      operationId: listModelsLegacy
+      tags: [deprecated]
+      deprecated: true
+      summary: Legacy model list
+      description: |
+        Superseded by `GET /api/v1/models`, which reports the same metadata plus
+        each model's actual capabilities. Kept for backwards compatibility.
+      responses:
+        "200":
+          description: Raw model metadata, one object per model.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+
+  /api:
+    post:
+      operationId: predictActivityLegacy
+      tags: [deprecated]
+      deprecated: true
+      summary: Legacy prediction endpoint - do not use for new clients
+      description: |
+        Superseded by `POST /api/v1/predict`. This endpoint is frozen for existing
+        clients and has three properties that make it unsuitable for new ones:
+
+        - Response keys are built from model names, so they are dynamic and
+          contain spaces and parentheses, e.g. `"prediction (TRalpha)"`. They
+          cannot be described by a fixed schema.
+        - Predicted values are returned as **strings**, not numbers.
+        - Requesting a model with `requires_docking: true` (`4or2_final`,
+          `8t6j_b_final`) does not return an error: it crashes the worker and the
+          caller receives a 502 from the proxy. `POST /api/v1/predict` returns a
+          clean `400 model_not_available_via_api` instead.
+
+        It also accepts `"format": "json" | "csv" | "text"`; the `csv` and `text`
+        renderings are derived from the same dynamic keys.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [smiles, models]
+              properties:
+                smiles:
+                  type: array
+                  items: {type: string}
+                models:
+                  type: array
+                  items: {type: string}
+                format:
+                  type: string
+                  enum: [json, csv, text]
+                  default: json
+      responses:
+        "200":
+          description: |
+            One object per input SMILES, with dynamic per-model keys.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    smiles: {type: string}
+                  additionalProperties: true
+              examples:
+                legacy:
+                  summary: Note the dynamic key and the string value
+                  value:
+                    - smiles: "CC(=O)OC1=CC=CC=C1C(=O)O"
+                      "prediction (TRalpha)": "5.9989"
+                      "within_applicability_domain (TRalpha)": true
+        "400":
+          description: Invalid input.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: {type: string}
+
+components:
+  schemas:
+    ServiceInfo:
+      type: object
+      description: Identifies the deployed service and the library behind it.
+      required: [name, version, qsprpred_version]
+      properties:
+        name:
+          type: string
+          examples: [qsprpred-docker]
+        version:
+          type: string
+          description: Version of this service.
+          examples: ["1.1.0"]
+        qsprpred_version:
+          type: [string, "null"]
+          description: Version of the QSPRpred library doing the prediction.
+          examples: ["3.1.1"]
+
+    CaseStudy:
+      type: object
+      description: The VHP4Safety case study a model belongs to.
+      required: [id, label]
+      properties:
+        id:
+          type: string
+          description: |
+            Identifier as stored in the model metadata. `archived` marks models
+            retained from earlier work rather than a case study.
+          examples: [thyroid, pd, nephrotox, archived]
+        label:
+          type: string
+          examples: [Thyroid, "Parkinson's disease"]
+
+    Target:
+      type: object
+      description: |
+        The protein target the model predicts against. Curated by hand and omitted
+        where it could not be established, so absence means unknown, not none.
+      properties:
+        uniprot:
+          type: string
+          description: UniProt accession.
+          examples: [P10827]
+        gene:
+          type: string
+          examples: [THRA]
+        name:
+          type: string
+          examples: [Thyroid hormone receptor alpha]
+        pdb:
+          type: string
+          description: PDB entry the docking structure came from, where applicable.
+          examples: ["4OR2"]
+        source:
+          type: string
+          description: How this annotation was derived, for auditing.
+
+    Model:
+      type: object
+      required:
+        - name
+        - pref_name
+        - case_study
+        - task
+        - target_property_name
+        - value_type
+        - unit
+        - algorithm
+        - feature_calculator
+        - requires_docking
+        - supports_batch_api
+        - applicability_domain_supported
+        - training_data_available
+        - estimated_seconds_per_molecule
+        - max_smiles
+        - has_qmrf
+      properties:
+        name:
+          type: string
+          description: Identifier to pass in the `models` array of a prediction request.
+          examples: [TRalpha]
+        pref_name:
+          type: string
+          description: Human-readable model name.
+        case_study:
+          $ref: "#/components/schemas/CaseStudy"
+        task:
+          type: string
+          enum: [REGRESSION, SINGLECLASS]
+        target_property_name:
+          type: string
+          description: Name of the property as used when the model was trained.
+          examples: [pchembl_value_Mean, active]
+        value_type:
+          type: string
+          enum: [pchembl, numeric, class_label]
+          description: |
+            What a predicted `value` means. `pchembl` is `-log10(molar)` aggregated
+            over heterogeneous assays: a relative potency indicator, not an
+            absolute measurement.
+        unit:
+          type: [string, "null"]
+          examples: ["-log10(mol/L)"]
+        algorithm:
+          type: string
+          examples: [RandomForestRegressor, XGBClassifier]
+        feature_calculator:
+          type: string
+          description: |
+            Descriptor set. `DataFrameDescriptorSet` means the descriptors come
+            from docked poses, which is why such models need docking.
+          examples: [MorganFP, DataFrameDescriptorSet]
+        requires_docking:
+          type: boolean
+          description: Whether a prediction requires docking each structure first.
+        supports_batch_api:
+          type: boolean
+          description: |
+            Whether this model can be used with `POST /api/v1/predict`. `false`
+            for docking models; use the web UI at `/predict` for those.
+        applicability_domain_supported:
+          type: boolean
+          description: Whether this model carries an applicability domain at all.
+        training_data_available:
+          type: boolean
+          description: |
+            Whether the model's training set is installed. When `false` the model
+            predicts normally over this API but fails in the web UI, which needs
+            the training set for its nearest-neighbour panel.
+        estimated_seconds_per_molecule:
+          type: number
+          description: |
+            Rolling average from recent predictions on this instance, so it is an
+            estimate and will change.
+          examples: [2.0, 45.0]
+        max_smiles:
+          type: integer
+          description: Maximum structures accepted in one request.
+          examples: [1000]
+        has_qmrf:
+          type: boolean
+          description: Whether a QMRF model-reporting document ships with this model.
+        target:
+          $ref: "#/components/schemas/Target"
+
+    ModelsResponse:
+      type: object
+      required: [api_version, service, models]
+      properties:
+        api_version:
+          type: string
+          examples: ["1.0.0"]
+        service:
+          $ref: "#/components/schemas/ServiceInfo"
+        models:
+          type: array
+          items:
+            $ref: "#/components/schemas/Model"
+
+    PredictRequest:
+      type: object
+      required: [smiles, models]
+      properties:
+        smiles:
+          type: array
+          description: |
+            Structures to predict, as SMILES. Each is standardized before
+            prediction. Unparseable entries are reported in `warnings` and do not
+            fail the request.
+          minItems: 1
+          maxItems: 1000
+          items:
+            type: string
+            minLength: 1
+          examples:
+            - ["CC(=O)OC1=CC=CC=C1C(=O)O"]
+        models:
+          type: array
+          description: |
+            Model names from `GET /api/v1/models`. Every model is applied to every
+            structure. Models with `supports_batch_api: false` are rejected.
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+          examples:
+            - ["TRalpha", "TRbeta"]
+
+    ApplicabilityDomain:
+      type: object
+      description: |
+        Whether the molecule falls inside the model's applicability domain.
+        `supported: false` means the model has no applicability domain, so no
+        check was performed - which is not the same as passing it.
+      required: [supported, within]
+      properties:
+        supported:
+          type: boolean
+        within:
+          type: [boolean, "null"]
+          description: |
+            `true` inside, `false` outside, `null` when not supported or not
+            determinable. A `false` means the value should not be relied upon.
+
+    Prediction:
+      type: object
+      required: [model, task, value, value_type, unit, label, applicability_domain]
+      properties:
+        model:
+          type: string
+        task:
+          type: string
+          enum: [REGRESSION, SINGLECLASS]
+        value:
+          type: number
+          description: |
+            The prediction, as a number. For `REGRESSION` with
+            `value_type: pchembl` this is `-log10(molar)`, a relative potency
+            indicator rather than a measured affinity, and a point estimate with
+            no confidence interval. For `SINGLECLASS` it is `1` (active) or `0`
+            (inactive); see `label`.
+          examples: [5.9989]
+        value_type:
+          type: string
+          enum: [pchembl, numeric, class_label]
+        unit:
+          type: [string, "null"]
+        label:
+          type: [string, "null"]
+          description: |
+            Class label for classification models (`Active` / `Inactive`), and
+            `null` for regression models.
+          enum: [Active, Inactive, null]
+        applicability_domain:
+          $ref: "#/components/schemas/ApplicabilityDomain"
+
+    Result:
+      type: object
+      description: One submitted structure and its predictions.
+      required: [input_smiles, standardized_smiles, valid, predictions]
+      properties:
+        input_smiles:
+          type: string
+          description: The SMILES exactly as submitted.
+        standardized_smiles:
+          type: [string, "null"]
+          description: |
+            The structure actually predicted on, after standardization, or `null`
+            if the input could not be parsed.
+        valid:
+          type: boolean
+        predictions:
+          type: array
+          description: One entry per requested model; empty when `valid` is `false`.
+          items:
+            $ref: "#/components/schemas/Prediction"
+
+    Warning:
+      type: object
+      description: A non-fatal problem with part of the request.
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [invalid_smiles]
+        smiles:
+          type: string
+        message:
+          type: string
+
+    PredictResponse:
+      type: object
+      required: [api_version, service, request, results, warnings]
+      properties:
+        api_version:
+          type: string
+          examples: ["1.0.0"]
+        service:
+          $ref: "#/components/schemas/ServiceInfo"
+        request:
+          type: object
+          description: Echo of what was processed.
+          required: [n_input, n_predicted, models]
+          properties:
+            n_input:
+              type: integer
+              description: Structures submitted.
+            n_predicted:
+              type: integer
+              description: |
+                Structures actually predicted. Lower than `n_input` when some
+                could not be parsed.
+            models:
+              type: array
+              items: {type: string}
+        results:
+          type: array
+          description: One entry per submitted structure, in the order submitted.
+          items:
+            $ref: "#/components/schemas/Result"
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Warning"
+
+    Error:
+      type: object
+      description: The single error envelope used by every `/api/v1` failure.
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Stable, machine-readable error identifier.
+              enum:
+                - invalid_request
+                - unknown_model
+                - model_not_available_via_api
+                - too_many_smiles
+                - no_valid_smiles
+                - prediction_failed
+            message:
+              type: string
+              description: Human-readable explanation.
+            details:
+              type: object
+              description: Error-specific context, e.g. which models were rejected.
+              additionalProperties: true

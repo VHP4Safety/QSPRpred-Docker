@@ -7,3 +7,4 @@ reportlab==4.4.3
 docxtpl==0.19.1
 gemmi==0.7.1
 vina==1.2.7
+pyyaml==6.0.2

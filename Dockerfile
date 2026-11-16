@@ -25,7 +25,7 @@ COPY static static
 COPY data data
 COPY qprf qprf
 COPY templates templates
-COPY app.py ifp.py entrypoint.sh ./
+COPY app.py api_v1.py ifp.py entrypoint.sh openapi.yaml llms.txt ./
 
 RUN chmod +x /usr/src/app/entrypoint.sh
 

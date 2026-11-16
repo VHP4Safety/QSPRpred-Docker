@@ -1,0 +1,66 @@
+{
+  "_comment": [
+    "Hand-curated map of model name -> protein target, served as the 'target' field of",
+    "GET /api/v1/models. Keys starting with '_' are ignored by the loader.",
+    "Each entry records how the identifier was derived so it can be audited. Models whose",
+    "target cannot be established from the repo are omitted rather than guessed: an absent",
+    "'target' field is correct, a wrong accession is not.",
+    "The TRalpha/TRbeta accessions are the only two not derivable from this repo; they were confirmed by Marvin Martens on 2026-11-16."
+  ],
+  "TRalpha": {
+    "uniprot": "P10827",
+    "gene": "THRA",
+    "name": "Thyroid hormone receptor alpha",
+    "source": "Not derivable from this repo. P10827 is human THRA; corroborated by an earlier copy of this service (VU_Google_Colabs/tmp_flask_qsprpred) that named the same model P10827_RF_Model. Confirmed by Marvin Martens, 2026-11-16."
+  },
+  "TRbeta": {
+    "uniprot": "P10828",
+    "gene": "THRB",
+    "name": "Thyroid hormone receptor beta",
+    "source": "Not derivable from this repo. P10828 is human THRB; corroborated by an earlier copy of this service (VU_Google_Colabs/tmp_flask_qsprpred) that named the same model P10828_RF_Model. Confirmed by Marvin Martens, 2026-11-16."
+  },
+  "4or2_final": {
+    "uniprot": "Q13255",
+    "gene": "GRM1",
+    "name": "Metabotropic glutamate receptor 1 (mGluR1)",
+    "pdb": "4OR2",
+    "source": "Model pref_name is 'Metabotropic glutamate receptor 1 (mGluR1)'; the archived sibling Q13255_Allosteric_RF_Model has pref_name 'mGLU 1', giving Q13255 for mGluR1."
+  },
+  "8t6j_b_final": {
+    "uniprot": "P41594",
+    "gene": "GRM5",
+    "name": "Metabotropic glutamate receptor 5 (mGluR5)",
+    "pdb": "8T6J",
+    "source": "Model pref_name is 'Metabotropic glutamate receptor 5 (mGluR5)'; the archived siblings P41594_Allosteric/Orthosteric_RF_Model have pref_name 'mGLU 5', giving P41594 for mGluR5."
+  },
+  "P41594_Allosteric_RF_Model": {
+    "uniprot": "P41594",
+    "gene": "GRM5",
+    "name": "Metabotropic glutamate receptor 5 (mGluR5), allosteric",
+    "source": "Accession is the model-name prefix."
+  },
+  "P41594_Orthosteric_RF_Model": {
+    "uniprot": "P41594",
+    "gene": "GRM5",
+    "name": "Metabotropic glutamate receptor 5 (mGluR5), orthosteric",
+    "source": "Accession is the model-name prefix."
+  },
+  "Q13255_Allosteric_RF_Model": {
+    "uniprot": "Q13255",
+    "gene": "GRM1",
+    "name": "Metabotropic glutamate receptor 1 (mGluR1), allosteric",
+    "source": "Accession is the model-name prefix."
+  },
+  "Q13224_RF_Model": {
+    "uniprot": "Q13224",
+    "gene": "GRIN2B",
+    "name": "Glutamate receptor ionotropic, NMDA 2B",
+    "source": "Accession is the model-name prefix; model pref_name is 'NMDA'."
+  },
+  "P31644_RF_Model": {
+    "uniprot": "P31644",
+    "gene": "GABRA5",
+    "name": "GABA(A) receptor subunit alpha-5",
+    "source": "Accession is the model-name prefix; model pref_name is 'GABA'."
+  }
+}
