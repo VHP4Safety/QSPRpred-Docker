@@ -1,6 +1,6 @@
 # QSPRpred-Docker
 
-A Docker-based prediction service built on the QSPRpred tool [github.com/CDDLeiden/QSPRpred](https://github.com/CDDLeiden/QSPRpred). It provides a web UI and a JSON/CSV API for predicting chemical bioactivity at molecular initiating events (MIEs) from the VHP4Safety case studies (thyroid, Parkinson's disease, nephrotoxicity), using imported pre-trained models.
+A Docker-based prediction service built on the QSPRpred tool [github.com/CDDLeiden/QSPRpred](https://github.com/CDDLeiden/QSPRpred). It provides a web UI and a documented JSON API ([OpenAPI 3.1](openapi.yaml)) for predicting chemical bioactivity at molecular initiating events (MIEs) from the VHP4Safety case studies (thyroid, Parkinson's disease, nephrotoxicity), using imported pre-trained models.
 
 > ## 📦 Project-end version (v1.0.0)
 >
@@ -53,33 +53,99 @@ Once the container is running, navigate to http://localhost:5000 in your web bro
 ![QSPRpred UI](qsprpred-ui.png?raw=true "UI")
 
 ### Using the API
-You can also interact with the Flask application via its API from your coding environment.
-Use `GET /get_models` to list the available models and their metadata:
-```sh
-curl localhost:5000/get_models
-```
-For models that define an applicability domain, prediction responses include a
-`within_applicability_domain (<model>)` field alongside the predicted value. Below are
-examples of how to use the prediction endpoint:
 
-#### Example: JSON Output
-To initiate a prediction and receive the results in JSON format, use:
+The API is described by [`openapi.yaml`](openapi.yaml) (OpenAPI 3.1), served by the
+running service:
+
+| URL | What it is |
+| --- | --- |
+| [`/docs`](https://qsprpred.cloud.vhp4safety.nl/docs) | Browsable API reference |
+| [`/openapi.yaml`](https://qsprpred.cloud.vhp4safety.nl/openapi.yaml) | The machine-readable contract (also `/openapi.json`) |
+| [`/llms.txt`](https://qsprpred.cloud.vhp4safety.nl/llms.txt) | Short orientation for LLM agents, including how to read the output |
+
+#### Which models can be used how
+
+Not all models work on all surfaces. `GET /api/v1/models` reports this per model, so a
+client never has to guess:
+
+| Models | JSON API | Web UI | Applicability domain |
+| --- | --- | --- | --- |
+| `TRalpha`, `TRbeta` (thyroid) | yes | yes | yes |
+| `4or2_final`, `8t6j_b_final` (Parkinson's) | **no** — `supports_batch_api: false` | yes, ~45 s/molecule | yes |
+| the five archived models | yes | **no** — no training set is shipped | **no** |
+
+#### Listing the models
+
 ```sh
-curl -X POST localhost:5000/api     -H "Content-Type: application/json"     -d '{
+curl https://qsprpred.cloud.vhp4safety.nl/api/v1/models
+```
+
+#### Predicting
+
+```sh
+curl -X POST https://qsprpred.cloud.vhp4safety.nl/api/v1/predict \
+  -H "Content-Type: application/json" \
+  -d '{"smiles": ["CC(=O)OC1=CC=CC=C1C(=O)O"], "models": ["TRalpha"]}'
+```
+
+```json
+{
+  "api_version": "1.0.0",
+  "service": {"name": "qsprpred-docker", "version": "1.1.0", "qsprpred_version": "3.1.1"},
+  "request": {"n_input": 1, "n_predicted": 1, "models": ["TRalpha"]},
+  "results": [
+    {
+      "input_smiles": "CC(=O)OC1=CC=CC=C1C(=O)O",
+      "standardized_smiles": "CC(=O)Oc1ccccc1C(=O)O",
+      "valid": true,
+      "predictions": [
+        {
+          "model": "TRalpha", "task": "REGRESSION",
+          "value": 5.9989, "value_type": "pchembl", "unit": "-log10(mol/L)", "label": null,
+          "applicability_domain": {"supported": true, "within": true}
+        }
+      ]
+    }
+  ],
+  "warnings": []
+}
+```
+
+Predictions are made on the **standardized** structure, which can differ from the SMILES
+submitted; both are returned. `applicability_domain.supported: false` means the model has
+no applicability domain, so no check was made — which is not the same as passing it. An
+unparseable SMILES is reported in `warnings` and does not fail the request. Errors use a
+single envelope with a stable `error.code` (`unknown_model`,
+`model_not_available_via_api`, `too_many_smiles`, ...); see `/docs`.
+
+#### Deprecated: `POST /api` and `GET /get_models`
+
+The unversioned endpoints still work and are unchanged, but new clients should use
+`/api/v1/*`. `POST /api` builds its response keys from model names
+(`"prediction (TRalpha)"`), returns predicted values as **strings**, and crashes the
+worker with a 502 if given a model that requires docking. `/api/v1/predict` returns a
+clean `400 model_not_available_via_api` instead.
+
+<details>
+<summary>Legacy <code>POST /api</code> examples (unchanged)</summary>
+
+JSON output:
+```sh
+curl -X POST localhost:5000/api -H "Content-Type: application/json" -d '{
         "smiles": ["C1=CC=CC=C1C(=O)NC2=CC=CC=C2", "CC(=O)OC1=CC=CC=C1C(=O)O"],
         "models": ["TRalpha", "TRbeta"],
         "format": "json"
     }'
 ```
-#### Example: CSV Output
-To receive the prediction results as a CSV file, use:
+CSV output:
 ```sh
-curl -X POST localhost:5000/api     -H "Content-Type: application/json"     -d '{
+curl -X POST localhost:5000/api -H "Content-Type: application/json" -d '{
         "smiles": ["C1=CC=CC=C1C(=O)NC2=CC=CC=C2", "CC(=O)OC1=CC=CC=C1C(=O)O"],
         "models": ["TRalpha", "TRbeta"],
         "format": "csv"
     }' -o predictions.csv
 ```
+</details>
 
 ### Local Development Setup
 To run the application locally without Docker:
@@ -90,6 +156,16 @@ pip install -r requirements.txt
 python app.py
 ```
 Then access the application at http://localhost:5000.
+
+### Running the tests
+```sh
+pip install -r requirements-dev.txt
+pytest
+```
+The suite covers the `/api/v1` request/response contract and guards `openapi.yaml`
+against drifting from the code: every `/api/v1` route must be documented, every
+documented path must be served, every example in the document must validate against its
+own schema, and the raised error codes must match the documented ones.
 
 ### IFP/Docking Models
 The application includes interaction fingerprint (IFP) models that use molecular docking:
@@ -113,3 +189,5 @@ The project concluded before these enhancements were implemented. They are recor
 - **Predictions are point estimates.** Models do not output confidence/prediction intervals ([#29](https://github.com/VHP4Safety/QSPRpred-Docker/issues/29)).
 - **Docking models are slow and strict.** The Parkinson's Disease IFP/docking models (`4or2_final`, `8t6j_b_final`) run AutoDock Vina (~30–60 s per molecule), require each batch to contain unique structures (identical molecules submitted together are rejected), and fail a request if any molecule cannot be docked.
 - **No QMRF for archived models.** The models in the "Archived" tab do not ship a QMRF document; their tiles show "QMRF not available".
+- **Archived models work only through the API.** They ship without their training set, which the web UI needs for its nearest-neighbour panel, so selecting one in the UI fails. `GET /api/v1/models` reports this as `training_data_available: false`.
+- **No nephrotoxicity model is installed.** The case study is described above and the UI has a tab for it, but no model currently ships for it.

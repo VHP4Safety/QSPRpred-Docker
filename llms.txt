@@ -1,0 +1,68 @@
+# QSPRpred (VHP4Safety)
+
+> QSAR bioactivity prediction for molecular initiating events (MIEs) from the
+> VHP4Safety case studies, using pretrained QSPRpred models. Give it chemical
+> structures as SMILES, get predicted activity against a protein target.
+
+Base URL: https://qsprpred.cloud.vhp4safety.nl
+Full contract: /openapi.yaml (OpenAPI 3.1) - browsable at /docs
+No authentication. Max 1000 structures per request.
+
+## Call it
+
+List the models first; it tells you which ones actually work over the API:
+
+    curl https://qsprpred.cloud.vhp4safety.nl/api/v1/models
+
+Then predict:
+
+    curl -X POST https://qsprpred.cloud.vhp4safety.nl/api/v1/predict \
+      -H "Content-Type: application/json" \
+      -d '{"smiles":["CC(=O)OC1=CC=CC=C1C(=O)O"],"models":["TRalpha"]}'
+
+Each result carries `value`, `unit`, and an `applicability_domain` object.
+
+## Models
+
+Thyroid: TRalpha (THRA, P10827), TRbeta (THRB, P10828). Regression, pChEMBL.
+Parkinson's: 4or2_final (mGluR1), 8t6j_b_final (mGluR5). Classification.
+  These two need molecular docking and are NOT available over the API. The API
+  returns 400 model_not_available_via_api; use the web UI at /predict instead.
+Archived: P31644_RF_Model (GABA), P41594_Allosteric_RF_Model,
+  P41594_Orthosteric_RF_Model (mGluR5), Q13224_RF_Model (NMDA),
+  Q13255_Allosteric_RF_Model (mGluR1). Regression, pChEMBL, no applicability
+  domain. These work over the API but fail in the web UI.
+No nephrotoxicity model is currently installed.
+
+Call /api/v1/models for the authoritative, live list.
+
+## Interpreting the results - IMPORTANT
+
+Do not report a prediction from this service as a measured property, and do not
+draw a hazard conclusion from it alone.
+
+- pChEMBL is -log10(molar), aggregated across heterogeneous assays with
+  different assay types, conditions and biological relevance. Treat it as a
+  RELATIVE potency indicator for comparing compounds, NOT an absolute
+  measurement of affinity.
+- Predictions are POINT ESTIMATES. No model here returns a confidence or
+  prediction interval, so no uncertainty can be read off the response.
+- applicability_domain.within == false means the structure is further from the
+  training set than the model's threshold allows: DO NOT rely on the value.
+- applicability_domain.supported == false means the model has no applicability
+  domain, so no such check was made. That is not the same as passing it.
+- Predictions are made on the standardized structure, which can differ from the
+  SMILES you sent. Both are returned; quote standardized_smiles.
+- A higher pChEMBL means higher predicted potency, nothing about adversity,
+  exposure or in vivo relevance.
+
+## Provenance
+
+Per-model QMRF documents (methodology) and per-prediction QPRF documents are
+available through the web UI. Models were trained on ChEMBL/Papyrus-derived
+bioactivity data; see the QMRF for each model's training set and validation.
+
+Source: https://github.com/VHP4Safety/QSPRpred-Docker
+Built on QSPRpred: https://github.com/CDDLeiden/QSPRpred
+Deprecated: POST /api and GET /get_models exist for older clients. Prefer
+/api/v1/*. POST /api crashes (502) if given a docking model.
